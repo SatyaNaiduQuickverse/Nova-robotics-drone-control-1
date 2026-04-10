@@ -15,3 +15,17 @@ services:
       sleep 5 &&
       python3 /ros2_ws/src/drone_control/drone_control/api_gateway.py"
     restart: unless-stopped
+
+  web:
+    image: python:3.11-slim
+    container_name: web-control
+    network_mode: host
+    volumes:
+      - ../web:/app:ro
+    working_dir: /app
+    command: >
+      bash -c "pip install --no-cache-dir flask requests -q &&
+      python3 app.py"
+    restart: unless-stopped
+    depends_on:
+      - drone

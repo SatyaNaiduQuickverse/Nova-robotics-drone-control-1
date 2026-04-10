@@ -11,7 +11,7 @@ import threading
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from mavros_msgs.srv import CommandBool, SetMode, CommandLong, WaypointClear, WaypointPush
+from mavros_msgs.srv import CommandBool, SetMode, CommandLong, WaypointClear, WaypointPush, StreamRate
 
 import sys
 import os
@@ -176,6 +176,47 @@ def _set_mode(mode: str, platform: str) -> tuple[bool, str, str]:
     return False, "SetMode service unavailable" if result is None else "Mode change rejected by FCU", mode_str
 
 
+# MAVLink message IDs for MESSAGE_INTERVAL requests
+_MSG_INTERVAL_IDS = [30, 32, 33, 74, 245]  # ATTITUDE, LOCAL_POSITION, GPS, VFR_HUD, EXTENDED_SYS_STATE
+
+
+def _enable_streams():
+    """Enable all MAVROS data streams. Runs in background after startup."""
+    node = telemetry.get_node()
+    stream_client = node.create_client(StreamRate, "/mavros/set_stream_rate")
+
+    # Wait for MAVROS to be ready
+    if not stream_client.wait_for_service(timeout_sec=30.0):
+        node.get_logger().warn("Stream rate service not available")
+        return
+
+    # Enable all stream groups (0=ALL, 1-12=specific groups)
+    for sid in [0, 1, 2, 3, 6, 10, 11, 12]:
+        req = StreamRate.Request()
+        req.stream_id = sid
+        req.message_rate = 10
+        req.on_off = True
+        future = stream_client.call_async(req)
+        end = time.monotonic() + 5.0
+        while not future.done() and time.monotonic() < end:
+            time.sleep(0.01)
+
+    # Request specific MAVLink messages via MESSAGE_INTERVAL (cmd 511)
+    if not _command_client.wait_for_service(timeout_sec=5.0):
+        return
+    for msg_id in _MSG_INTERVAL_IDS:
+        req = CommandLong.Request()
+        req.command = 511  # MAV_CMD_SET_MESSAGE_INTERVAL
+        req.param1 = float(msg_id)
+        req.param2 = 100000.0  # 100ms interval = 10Hz
+        future = _command_client.call_async(req)
+        end = time.monotonic() + 5.0
+        while not future.done() and time.monotonic() < end:
+            time.sleep(0.01)
+
+    node.get_logger().info("All data streams enabled")
+
+
 @app.on_event("startup")
 def startup():
     global _arming_client, _set_mode_client, _command_client, _wp_clear_client, _wp_push_client
@@ -190,6 +231,9 @@ def startup():
     _command_client = node.create_client(CommandLong, "/mavros/cmd/command")
     _wp_clear_client = node.create_client(WaypointClear, "/mavros/mission/clear")
     _wp_push_client = node.create_client(WaypointPush, "/mavros/mission/push")
+
+    # Enable streams in background so startup doesn't block
+    threading.Thread(target=_enable_streams, daemon=True).start()
 
 
 @app.on_event("shutdown")

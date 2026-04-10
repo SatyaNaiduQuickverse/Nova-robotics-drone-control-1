@@ -14,62 +14,61 @@ body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospac
 .dot.red { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
 .dot.yellow { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
 .dot.gray { background: #555; }
-.main { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100vh - 42px); }
-.panel { background: #16213e; border-right: 1px solid #333; padding: 15px; overflow-y: auto; }
-.panel h3 { color: #7799cc; margin-bottom: 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-.telem-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+.main { display: grid; grid-template-columns: 220px 1fr 260px; gap: 0; height: calc(100vh - 72px); }
+.panel { background: #16213e; border-right: 1px solid #333; padding: 12px; overflow-y: auto; }
+.panel-r { background: #16213e; border-left: 1px solid #333; padding: 12px; overflow-y: auto; }
+.panel h3, .panel-r h3 { color: #7799cc; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.telem-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
 .telem-val { color: #00ddff; }
-.section { margin-bottom: 20px; }
-.btn { padding: 8px 16px; border: 1px solid #444; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px; background: #1a1a2e; color: #d0d0d0; transition: 0.15s; }
+.section { margin-bottom: 15px; }
+.btn { padding: 8px 14px; border: 1px solid #444; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; background: #1a1a2e; color: #d0d0d0; transition: 0.15s; }
 .btn:hover { border-color: #888; }
 .btn:active { transform: scale(0.97); }
 .btn-arm { border-color: #00ff88; color: #00ff88; }
 .btn-arm:hover { background: #00ff8822; }
 .btn-disarm { border-color: #ff4444; color: #ff4444; }
 .btn-disarm:hover { background: #ff444422; }
-.btn-mode { min-width: 70px; }
+.btn-mode { min-width: 60px; }
 .btn-mode.active { background: #3344aa; border-color: #5566dd; color: #fff; }
 .btn-enable { padding: 12px 24px; font-size: 15px; font-weight: bold; border-color: #00ff88; color: #00ff88; }
 .btn-enable:hover { background: #00ff8822; }
-.btn-enable.active { background: #00ff88; color: #000; }
 .btn-disable { padding: 12px 24px; font-size: 15px; font-weight: bold; border-color: #ff4444; color: #ff4444; }
 .btn-disable:hover { background: #ff444422; }
-.btn-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-.center-panel { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-.control-area { display: flex; gap: 60px; align-items: center; margin-top: 10px; }
+.btn-grid { display: flex; gap: 5px; flex-wrap: wrap; }
+.center-panel { padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+.control-area { display: flex; gap: 50px; align-items: center; margin-top: 5px; }
 .key-group { text-align: center; }
-.key-group-label { color: #7799cc; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; }
+.key-group-label { color: #7799cc; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; }
 .key-row { display: flex; gap: 4px; justify-content: center; margin: 4px 0; }
 .key {
-    width: 52px; height: 44px; border: 2px solid #333; border-radius: 6px;
+    width: 50px; height: 42px; border: 2px solid #333; border-radius: 6px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: bold; background: #1a1a2e; transition: 0.1s;
+    font-size: 13px; font-weight: bold; background: #1a1a2e; transition: 0.1s;
 }
 .key .sub { font-size: 9px; color: #888; font-weight: normal; }
 .key.pressed { background: #3344aa; border-color: #5566dd; color: #fff; box-shadow: 0 0 10px #3344aa88; }
-.key.space { width: 200px; }
+.key.space { width: 180px; }
 .key.space.pressed { background: #aa2222; border-color: #ff4444; box-shadow: 0 0 15px #ff444488; }
-.status-bar { background: #1a1a2e; border-top: 1px solid #333; padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; position: fixed; bottom: 0; width: 100%; }
-.status-bar .val { color: #00ddff; }
-.log { color: #888; max-width: 500px; }
-.emergency { color: #ff4444; font-size: 12px; margin-top: 5px; }
-.control-status { text-align: center; font-size: 13px; margin-top: 10px; }
+.status-bar { background: #1a1a2e; border-top: 1px solid #333; padding: 6px 20px; font-size: 12px; display: flex; gap: 20px; position: fixed; bottom: 0; width: 100%; }
+.log { color: #888; }
+.control-status { text-align: center; font-size: 12px; margin-top: 5px; }
 .control-status .enabled { color: #00ff88; font-weight: bold; }
 .control-status .disabled { color: #888; }
 .latency { color: #ffaa00; }
-.motors { display: flex; gap: 15px; margin-top: 10px; }
+.motors { display: flex; gap: 10px; }
 .motor { text-align: center; }
-.motor .num { font-size: 11px; color: #888; }
-.motor .pwm { font-size: 16px; color: #00ddff; font-weight: bold; }
-.motor-bar { width: 30px; height: 80px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; position: relative; overflow: hidden; margin: 4px auto; }
+.motor .num { font-size: 10px; color: #888; }
+.motor .pwm { font-size: 13px; color: #00ddff; font-weight: bold; }
+.motor-bar { width: 24px; height: 60px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; position: relative; overflow: hidden; margin: 3px auto; }
 .motor-fill { position: absolute; bottom: 0; width: 100%; background: #3344aa; transition: height 0.2s; }
-.tuner { width: 100%; max-width: 360px; margin-top: 5px; }
-.tuner-wrap { text-align: center; margin-top: 10px; }
-.tuner-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; max-width: 360px; margin: 2px auto 0; }
-.tuner-val { color: #00ddff; font-size: 13px; margin-top: 4px; }
+.tuner { width: 100%; max-width: 340px; margin-top: 4px; }
+.tuner-wrap { text-align: center; }
+.tuner-labels { display: flex; justify-content: space-between; font-size: 10px; color: #666; max-width: 340px; margin: 2px auto 0; }
+.tuner-val { color: #00ddff; font-size: 12px; margin-top: 3px; }
 input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: #1a1a2e; border: 1px solid #444; border-radius: 3px; outline: none; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #3344aa; border: 2px solid #5566dd; cursor: pointer; }
-.tuner-btn { padding: 4px 12px; font-size: 11px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3344aa; border: 2px solid #5566dd; cursor: pointer; }
+.tuner-btn { padding: 3px 10px; font-size: 10px; }
+.sep { border-top: 1px solid #333; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -103,13 +102,14 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18p
 </div>
 
 <div class="main">
+    <!-- LEFT PANEL: Commands -->
     <div class="panel">
         <div class="section">
             <h3>Commands</h3>
             <div class="btn-grid">
                 <button class="btn btn-arm" onclick="apiPost('/api/arm')">ARM</button>
                 <button class="btn btn-disarm" onclick="apiPost('/api/disarm')">DISARM</button>
-                <button class="btn btn-disarm" onclick="apiPost('/api/disarm/force')">FORCE DISARM</button>
+                <button class="btn btn-disarm" onclick="apiPost('/api/disarm/force')">FORCE</button>
             </div>
         </div>
 
@@ -126,21 +126,15 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18p
         </div>
 
         <div class="section">
-            <h3>Telemetry</h3>
-            <div class="telem-row"><span>Voltage</span><span class="telem-val" id="t-volt">--</span></div>
-            <div class="telem-row"><span>Current</span><span class="telem-val" id="t-curr">--</span></div>
-            <div class="telem-row"><span>Battery</span><span class="telem-val" id="t-pct">--</span></div>
-            <div class="telem-row"><span>Rel Alt</span><span class="telem-val" id="t-alt">--</span></div>
-            <div class="telem-row"><span>Heading</span><span class="telem-val" id="t-hdg">--</span></div>
-            <div class="telem-row"><span>GPS Fix</span><span class="telem-val" id="t-fix">--</span></div>
-            <div class="telem-row"><span>Sats</span><span class="telem-val" id="t-sats">--</span></div>
-            <div class="telem-row"><span>HDOP</span><span class="telem-val" id="t-hdop">--</span></div>
-            <div class="telem-row"><span>Lat</span><span class="telem-val" id="t-lat">--</span></div>
-            <div class="telem-row"><span>Lon</span><span class="telem-val" id="t-lon">--</span></div>
-            <div class="telem-row"><span>GSpd</span><span class="telem-val" id="t-gspd">--</span></div>
-            <div class="telem-row"><span>VSpd</span><span class="telem-val" id="t-vspd">--</span></div>
-            <div class="telem-row"><span>Temp</span><span class="telem-val" id="t-temp">--</span></div>
-            <div class="telem-row"><span>Pressure</span><span class="telem-val" id="t-pres">--</span></div>
+            <h3>Mission</h3>
+            <textarea id="wpl-input" rows="5" style="width:100%; background:#1a1a2e; color:#d0d0d0; border:1px solid #444; border-radius:4px; font-family:inherit; font-size:11px; padding:6px; resize:vertical;" placeholder="Paste QGC WPL 110 here..."></textarea>
+            <div class="btn-grid" style="margin-top:5px;">
+                <button class="btn btn-arm" onclick="uploadMission(true)" style="font-size:11px;">UPLOAD &amp; ARM</button>
+                <button class="btn btn-mode" onclick="uploadMission(false)" style="font-size:11px;">UPLOAD</button>
+                <button class="btn btn-disarm" onclick="clearMission()" style="font-size:11px;">CLEAR</button>
+            </div>
+            <input type="file" id="wpl-file" accept=".txt,.waypoints,.wpl" style="display:none;" onchange="loadWplFile(event)">
+            <button class="btn" onclick="document.getElementById('wpl-file').click()" style="font-size:10px; margin-top:4px; width:100%;">Load from file</button>
         </div>
 
         <div class="section">
@@ -149,11 +143,26 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18p
         </div>
 
         <div class="section">
+            <h3>RC Input</h3>
+            <div id="rc-in" style="font-size:11px; color:#888;">--</div>
+        </div>
+
+        <div class="section">
             <h3>FCU Status</h3>
-            <div id="t-status" style="color:#ffaa00; font-size:12px;">--</div>
+            <div id="t-status" style="color:#ffaa00; font-size:11px;">--</div>
+        </div>
+
+        <div class="section">
+            <h3>TX Status</h3>
+            <div style="font-size:11px;">
+                <div class="telem-row"><span>Enabled</span><span id="tx-enabled" class="disabled">--</span></div>
+                <div class="telem-row"><span>Failsafe</span><span id="tx-failsafe">--</span></div>
+                <div class="telem-row"><span>Hold</span><span id="tx-hold" class="telem-val">--</span></div>
+            </div>
         </div>
     </div>
 
+    <!-- CENTER: Controls -->
     <div class="center-panel">
         <div>
             <button class="btn btn-enable" id="btn-ctrl" onclick="toggleControl()">ENABLE CONTROL</button>
@@ -196,23 +205,102 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18p
         </div>
 
         <div class="tuner-wrap">
-            <div style="color:#7799cc; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Flight Feel</div>
+            <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Flight Feel</div>
             <input type="range" class="tuner" id="tuner" min="0" max="100" value="50" oninput="applyTuner(this.value)">
             <div class="tuner-labels"><span>Gentle</span><span>Default</span><span>Sport</span></div>
             <div class="tuner-val" id="tuner-val">Default (50%)</div>
             <button class="btn tuner-btn" onclick="document.getElementById('tuner').value=50; applyTuner(50);">Reset Default</button>
         </div>
 
-        <div style="font-size:12px; color:#666; max-width:400px; text-align:center; line-height:1.6; margin-top:10px;">
+        <div style="font-size:11px; color:#555; max-width:380px; text-align:center; line-height:1.5;">
             Set STABILIZE, ALT_HOLD, or LOITER first, then enable control.<br>
-            Release all keys = hover in place. Tab away = hover in place (failsafe).<br>
-            SPACE = switch to LAND mode (auto-land).
+            Release all keys = hover. Tab away = failsafe hover. SPACE = LAND.
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: All Telemetry -->
+    <div class="panel-r">
+        <div class="section">
+            <h3>Battery</h3>
+            <div class="telem-row"><span>Voltage</span><span class="telem-val" id="t-volt">--</span></div>
+            <div class="telem-row"><span>Current</span><span class="telem-val" id="t-curr">--</span></div>
+            <div class="telem-row"><span>Level</span><span class="telem-val" id="t-pct">--</span></div>
         </div>
 
-        <div class="control-status">
-            <span>TX: </span><span id="tx-enabled" class="disabled">--</span>
-            &nbsp;|&nbsp; Failsafe: <span id="tx-failsafe">--</span>
-            &nbsp;|&nbsp; Hold: <span id="tx-hold">--</span>
+        <div class="section">
+            <h3>Position</h3>
+            <div class="telem-row"><span>Rel Alt</span><span class="telem-val" id="t-alt">--</span></div>
+            <div class="telem-row"><span>Heading</span><span class="telem-val" id="t-hdg">--</span></div>
+            <div class="telem-row"><span>GSpd</span><span class="telem-val" id="t-gspd">--</span></div>
+            <div class="telem-row"><span>VSpd</span><span class="telem-val" id="t-vspd">--</span></div>
+            <div class="telem-row"><span>Airspeed</span><span class="telem-val" id="t-aspd">--</span></div>
+            <div class="telem-row"><span>Throttle</span><span class="telem-val" id="t-thr">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>GPS</h3>
+            <div class="telem-row"><span>Fix</span><span class="telem-val" id="t-fix">--</span></div>
+            <div class="telem-row"><span>Sats</span><span class="telem-val" id="t-sats">--</span></div>
+            <div class="telem-row"><span>HDOP</span><span class="telem-val" id="t-hdop">--</span></div>
+            <div class="telem-row"><span>Lat</span><span class="telem-val" id="t-lat">--</span></div>
+            <div class="telem-row"><span>Lon</span><span class="telem-val" id="t-lon">--</span></div>
+            <div class="telem-row"><span>GPS Alt</span><span class="telem-val" id="t-galt">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Orientation</h3>
+            <div class="telem-row"><span>Roll</span><span class="telem-val" id="t-roll">--</span></div>
+            <div class="telem-row"><span>Pitch</span><span class="telem-val" id="t-pitch">--</span></div>
+            <div class="telem-row"><span>Yaw</span><span class="telem-val" id="t-yaw">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Local Position</h3>
+            <div class="telem-row"><span>X</span><span class="telem-val" id="t-lx">--</span></div>
+            <div class="telem-row"><span>Y</span><span class="telem-val" id="t-ly">--</span></div>
+            <div class="telem-row"><span>Z</span><span class="telem-val" id="t-lz">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Velocity</h3>
+            <div class="telem-row"><span>Vx</span><span class="telem-val" id="t-vx">--</span></div>
+            <div class="telem-row"><span>Vy</span><span class="telem-val" id="t-vy">--</span></div>
+            <div class="telem-row"><span>Vz</span><span class="telem-val" id="t-vz">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>IMU</h3>
+            <div class="telem-row"><span>Ax</span><span class="telem-val" id="t-ax">--</span></div>
+            <div class="telem-row"><span>Ay</span><span class="telem-val" id="t-ay">--</span></div>
+            <div class="telem-row"><span>Az</span><span class="telem-val" id="t-az">--</span></div>
+            <div class="telem-row"><span>Gx</span><span class="telem-val" id="t-gx">--</span></div>
+            <div class="telem-row"><span>Gy</span><span class="telem-val" id="t-gy">--</span></div>
+            <div class="telem-row"><span>Gz</span><span class="telem-val" id="t-gz">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Magnetometer</h3>
+            <div class="telem-row"><span>Mx</span><span class="telem-val" id="t-mx">--</span></div>
+            <div class="telem-row"><span>My</span><span class="telem-val" id="t-my">--</span></div>
+            <div class="telem-row"><span>Mz</span><span class="telem-val" id="t-mz">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Barometer</h3>
+            <div class="telem-row"><span>Pressure</span><span class="telem-val" id="t-pres">--</span></div>
+            <div class="telem-row"><span>Temp</span><span class="telem-val" id="t-temp">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Home</h3>
+            <div class="telem-row"><span>Lat</span><span class="telem-val" id="t-hlat">--</span></div>
+            <div class="telem-row"><span>Lon</span><span class="telem-val" id="t-hlon">--</span></div>
+            <div class="telem-row"><span>Alt</span><span class="telem-val" id="t-halt">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Extended State</h3>
+            <div class="telem-row"><span>Landed</span><span class="telem-val" id="t-landed">--</span></div>
         </div>
     </div>
 </div>
@@ -228,7 +316,6 @@ let controlLoop = null;
 let telemLoop = null;
 
 // --- Tuner profiles ---
-// [gentle, default, sport] — slider interpolates between these
 const PROFILES = {
     pitchRoll:    [0.20, 0.40, 0.85],
     yaw:          [0.15, 0.30, 0.60],
@@ -244,7 +331,6 @@ const PROFILES = {
     thrRate:      [0.8,  1.5,  3.0],
 };
 
-// Current stick values (modified by tuner)
 let stickPitchRoll = 0.40;
 let stickYaw = 0.30;
 let stickThrUp = 0.25;
@@ -254,51 +340,44 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 
 function applyTuner(val) {
     val = parseInt(val);
-    // 0-50 = gentle..default, 50-100 = default..sport
     let t, lo, hi;
-    if (val <= 50) {
-        t = val / 50;  // 0..1
-        lo = 0; hi = 1;  // gentle..default indices
-    } else {
-        t = (val - 50) / 50;  // 0..1
-        lo = 1; hi = 2;  // default..sport indices
-    }
+    if (val <= 50) { t = val / 50; lo = 0; hi = 1; }
+    else { t = (val - 50) / 50; lo = 1; hi = 2; }
 
     stickPitchRoll = lerp(PROFILES.pitchRoll[lo], PROFILES.pitchRoll[hi], t);
     stickYaw       = lerp(PROFILES.yaw[lo],       PROFILES.yaw[hi],       t);
     stickThrUp     = lerp(PROFILES.thrUp[lo],      PROFILES.thrUp[hi],     t);
     stickThrDown   = lerp(PROFILES.thrDown[lo],    PROFILES.thrDown[hi],   t);
 
-    // Label
     let label = val < 30 ? 'Gentle' : val < 70 ? 'Default' : 'Sport';
     document.getElementById('tuner-val').textContent = label + ' (' + val + '%)';
 
-    // Push expo/smoothing/rate config to virtual TX
-    const config = {
-        roll_expo:         lerp(PROFILES.expo[lo],      PROFILES.expo[hi],      t),
-        pitch_expo:        lerp(PROFILES.expo[lo],      PROFILES.expo[hi],      t),
-        yaw_expo:          lerp(PROFILES.yawExpo[lo],   PROFILES.yawExpo[hi],   t),
-        roll_smoothing:    lerp(PROFILES.smoothing[lo],  PROFILES.smoothing[hi], t),
-        pitch_smoothing:   lerp(PROFILES.smoothing[lo],  PROFILES.smoothing[hi], t),
-        yaw_smoothing:     lerp(PROFILES.yawSmooth[lo],  PROFILES.yawSmooth[hi], t),
-        throttle_smoothing:lerp(PROFILES.thrSmooth[lo],  PROFILES.thrSmooth[hi], t),
-        roll_rate_limit:   lerp(PROFILES.rateLimit[lo],  PROFILES.rateLimit[hi], t),
-        pitch_rate_limit:  lerp(PROFILES.rateLimit[lo],  PROFILES.rateLimit[hi], t),
-        yaw_rate_limit:    lerp(PROFILES.yawRate[lo],    PROFILES.yawRate[hi],   t),
-        throttle_rate_limit:lerp(PROFILES.thrRate[lo],   PROFILES.thrRate[hi],   t),
-    };
     fetch('/api/control/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify({
+            roll_expo:          lerp(PROFILES.expo[lo],     PROFILES.expo[hi],     t),
+            pitch_expo:         lerp(PROFILES.expo[lo],     PROFILES.expo[hi],     t),
+            yaw_expo:           lerp(PROFILES.yawExpo[lo],  PROFILES.yawExpo[hi],  t),
+            roll_smoothing:     lerp(PROFILES.smoothing[lo], PROFILES.smoothing[hi], t),
+            pitch_smoothing:    lerp(PROFILES.smoothing[lo], PROFILES.smoothing[hi], t),
+            yaw_smoothing:      lerp(PROFILES.yawSmooth[lo], PROFILES.yawSmooth[hi], t),
+            throttle_smoothing: lerp(PROFILES.thrSmooth[lo], PROFILES.thrSmooth[hi], t),
+            roll_rate_limit:    lerp(PROFILES.rateLimit[lo], PROFILES.rateLimit[hi], t),
+            pitch_rate_limit:   lerp(PROFILES.rateLimit[lo], PROFILES.rateLimit[hi], t),
+            yaw_rate_limit:     lerp(PROFILES.yawRate[lo],   PROFILES.yawRate[hi],   t),
+            throttle_rate_limit:lerp(PROFILES.thrRate[lo],   PROFILES.thrRate[hi],   t),
+        })
     });
 }
 
-// --- Telemetry polling ---
+// --- Telemetry polling (all through /api/ Flask proxy) ---
 function startTelemetry() {
     updateTelemetry();
     telemLoop = setInterval(updateTelemetry, 500);
 }
+
+function deg(rad) { return (rad * 180 / Math.PI).toFixed(1); }
 
 async function updateTelemetry() {
     try {
@@ -324,35 +403,87 @@ async function updateTelemetry() {
             btn.classList.toggle('active', d.state.mode === modeMap[m]);
         });
 
-        // Telemetry panel
+        // Battery
         document.getElementById('t-volt').textContent = d.battery.voltage.toFixed(2) + ' V';
         document.getElementById('t-curr').textContent = d.battery.current.toFixed(2) + ' A';
         document.getElementById('t-pct').textContent = (d.battery.percentage * 100).toFixed(0) + '%';
+
+        // Position / VFR HUD
         document.getElementById('t-alt').textContent = d.relative_alt.toFixed(2) + ' m';
         document.getElementById('t-hdg').textContent = d.heading.toFixed(1) + '\u00b0';
+        document.getElementById('t-gspd').textContent = d.vfr_hud.groundspeed.toFixed(1) + ' m/s';
+        document.getElementById('t-vspd').textContent = d.vfr_hud.climb_rate.toFixed(1) + ' m/s';
+        document.getElementById('t-aspd').textContent = d.vfr_hud.airspeed.toFixed(1) + ' m/s';
+        document.getElementById('t-thr').textContent = (d.vfr_hud.throttle * 100).toFixed(0) + '%';
+
+        // GPS
         document.getElementById('t-fix').textContent = d.gps.fix_type;
         document.getElementById('t-sats').textContent = d.gps.satellites;
         document.getElementById('t-hdop').textContent = d.gps.hdop;
-        document.getElementById('t-lat').textContent = d.gps.latitude.toFixed(6);
-        document.getElementById('t-lon').textContent = d.gps.longitude.toFixed(6);
-        document.getElementById('t-gspd').textContent = d.vfr_hud.groundspeed.toFixed(1) + ' m/s';
-        document.getElementById('t-vspd').textContent = d.vfr_hud.climb_rate.toFixed(1) + ' m/s';
-        document.getElementById('t-temp').textContent = d.baro.temperature.toFixed(1) + '\u00b0C';
+        document.getElementById('t-lat').textContent = d.gps.latitude.toFixed(7);
+        document.getElementById('t-lon').textContent = d.gps.longitude.toFixed(7);
+        document.getElementById('t-galt').textContent = d.gps.altitude.toFixed(1) + ' m';
+
+        // Orientation (rad -> deg)
+        document.getElementById('t-roll').textContent = deg(d.orientation.roll) + '\u00b0';
+        document.getElementById('t-pitch').textContent = deg(d.orientation.pitch) + '\u00b0';
+        document.getElementById('t-yaw').textContent = deg(d.orientation.yaw) + '\u00b0';
+
+        // Local position
+        document.getElementById('t-lx').textContent = d.local_position.x.toFixed(2) + ' m';
+        document.getElementById('t-ly').textContent = d.local_position.y.toFixed(2) + ' m';
+        document.getElementById('t-lz').textContent = d.local_position.z.toFixed(2) + ' m';
+
+        // Velocity
+        document.getElementById('t-vx').textContent = d.velocity.vx.toFixed(2) + ' m/s';
+        document.getElementById('t-vy').textContent = d.velocity.vy.toFixed(2) + ' m/s';
+        document.getElementById('t-vz').textContent = d.velocity.vz.toFixed(2) + ' m/s';
+
+        // IMU
+        document.getElementById('t-ax').textContent = d.imu.ax.toFixed(2) + ' m/s\u00b2';
+        document.getElementById('t-ay').textContent = d.imu.ay.toFixed(2) + ' m/s\u00b2';
+        document.getElementById('t-az').textContent = d.imu.az.toFixed(2) + ' m/s\u00b2';
+        document.getElementById('t-gx').textContent = d.imu.gx.toFixed(4) + ' rad/s';
+        document.getElementById('t-gy').textContent = d.imu.gy.toFixed(4) + ' rad/s';
+        document.getElementById('t-gz').textContent = d.imu.gz.toFixed(4) + ' rad/s';
+
+        // Magnetometer
+        document.getElementById('t-mx').textContent = d.mag.x.toFixed(0);
+        document.getElementById('t-my').textContent = d.mag.y.toFixed(0);
+        document.getElementById('t-mz').textContent = d.mag.z.toFixed(0);
+
+        // Barometer
         document.getElementById('t-pres').textContent = (d.baro.pressure / 100).toFixed(1) + ' hPa';
+        document.getElementById('t-temp').textContent = d.baro.temperature.toFixed(1) + '\u00b0C';
+
+        // Home
+        document.getElementById('t-hlat').textContent = d.home.latitude.toFixed(7);
+        document.getElementById('t-hlon').textContent = d.home.longitude.toFixed(7);
+        document.getElementById('t-halt').textContent = d.home.altitude.toFixed(1) + ' m';
+
+        // Extended state
+        const landedMap = { 0: 'Unknown', 1: 'On Ground', 2: 'In Air', 3: 'Takeoff', 4: 'Landing' };
+        document.getElementById('t-landed').textContent = landedMap[d.extended_state.landed_state] || d.extended_state.landed_state;
+
+        // FCU status
         document.getElementById('t-status').textContent = d.status_text;
 
-        // Motors
+        // Motors (RC out)
         const mc = d.rc_out.channels.slice(0, 4);
         const mEl = document.getElementById('motors');
         if (mc.length > 0) {
             mEl.innerHTML = mc.map((pwm, i) => {
                 const pct = Math.max(0, Math.min(100, ((pwm - 1000) / 1000) * 100));
-                return `<div class="motor">
-                    <div class="num">M${i + 1}</div>
-                    <div class="motor-bar"><div class="motor-fill" style="height:${pct}%"></div></div>
-                    <div class="pwm">${pwm}</div>
-                </div>`;
+                return `<div class="motor"><div class="num">M${i+1}</div><div class="motor-bar"><div class="motor-fill" style="height:${pct}%"></div></div><div class="pwm">${pwm}</div></div>`;
             }).join('');
+        }
+
+        // RC input
+        const rcIn = d.rc_in.channels;
+        if (rcIn && rcIn.length > 0) {
+            document.getElementById('rc-in').textContent = rcIn.slice(0, 8).join(' ');
+        } else {
+            document.getElementById('rc-in').textContent = 'No RC input';
         }
     } catch (e) {
         document.getElementById('dot-conn').className = 'dot red';
@@ -371,7 +502,7 @@ async function updateTelemetry() {
     } catch (e) {}
 }
 
-// --- API calls ---
+// --- API calls (all through /api/ Flask proxy) ---
 async function apiPost(url, body) {
     try {
         const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
@@ -386,25 +517,42 @@ async function apiPost(url, body) {
     }
 }
 
-async function setMode(mode) {
-    await apiPost('/api/mode', { mode: mode });
+async function setMode(mode) { await apiPost('/api/mode', { mode: mode }); }
+
+async function uploadMission(autoArm) {
+    const wpl = document.getElementById('wpl-input').value.trim();
+    if (!wpl) { log('Paste WPL mission data first'); return; }
+    log('Uploading mission...');
+    await apiPost('/api/mission', { wpl: wpl, auto_arm: autoArm });
 }
 
-function log(msg) {
-    document.getElementById('log').textContent = msg;
+async function clearMission() {
+    const r = await fetch('/api/mission', { method: 'DELETE' });
+    const d = await r.json();
+    log(d.message || JSON.stringify(d));
 }
+
+function loadWplFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('wpl-input').value = e.target.result;
+        log('Loaded: ' + file.name);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function log(msg) { document.getElementById('log').textContent = msg; }
 
 // --- Control ---
 async function toggleControl() {
-    if (controlEnabled) {
-        stopControl();
-    } else {
-        await startControl();
-    }
+    if (controlEnabled) stopControl();
+    else await startControl();
 }
 
 async function startControl() {
-    // Check current mode allows manual control
     const telem = await fetch('/api/telemetry/state').then(r => r.json());
     const mode = telem.mode;
     const manualModes = ['STABILIZE', 'ALT_HOLD', 'LOITER'];
@@ -413,7 +561,6 @@ async function startControl() {
         return;
     }
 
-    // Enable virtual TX
     log('Enabling virtual TX...');
     const txRes = await apiPost('/api/control/enable');
     if (!txRes || !txRes.success) {
@@ -427,22 +574,15 @@ async function startControl() {
     document.getElementById('ctrl-status').textContent = 'CONTROL ACTIVE';
     document.getElementById('ctrl-status').className = 'enabled';
     log('Control enabled - ' + mode + ' mode - use WASD + arrows');
-
-    // Start sending commands at 5Hz
     controlLoop = setInterval(sendControlCommand, 200);
 }
 
 async function stopControl() {
     controlEnabled = false;
-    if (controlLoop) {
-        clearInterval(controlLoop);
-        controlLoop = null;
-    }
+    if (controlLoop) { clearInterval(controlLoop); controlLoop = null; }
     Object.keys(keys).forEach(k => keys[k] = false);
     updateKeyVisuals();
-
     await apiPost('/api/control/disable');
-
     document.getElementById('btn-ctrl').textContent = 'ENABLE CONTROL';
     document.getElementById('btn-ctrl').className = 'btn btn-enable';
     document.getElementById('ctrl-status').textContent = 'Control disabled';
@@ -453,25 +593,18 @@ async function stopControl() {
 
 async function sendControlCommand() {
     if (!controlEnabled) return;
-
-    // ALT_HOLD throttle: 0.44 = mid-stick = hold altitude
     const HOVER = 0.44;
-
     let roll = 0, pitch = 0, yaw = 0, throttle = HOVER;
 
-    // WASD - throttle / yaw
-    if (keys['w']) throttle = HOVER + stickThrUp;    // climb
-    if (keys['s']) throttle = HOVER - stickThrDown;  // descend
-    if (keys['a']) yaw = -stickYaw;                  // yaw left
-    if (keys['d']) yaw = stickYaw;                   // yaw right
+    if (keys['w']) throttle = HOVER + stickThrUp;
+    if (keys['s']) throttle = HOVER - stickThrDown;
+    if (keys['a']) yaw = -stickYaw;
+    if (keys['d']) yaw = stickYaw;
+    if (keys['ArrowUp']) pitch = -stickPitchRoll;
+    if (keys['ArrowDown']) pitch = stickPitchRoll;
+    if (keys['ArrowLeft']) roll = -stickPitchRoll;
+    if (keys['ArrowRight']) roll = stickPitchRoll;
 
-    // Arrows - pitch / roll
-    if (keys['ArrowUp']) pitch = -stickPitchRoll;    // forward (nose down)
-    if (keys['ArrowDown']) pitch = stickPitchRoll;   // backward (nose up)
-    if (keys['ArrowLeft']) roll = -stickPitchRoll;   // roll left
-    if (keys['ArrowRight']) roll = stickPitchRoll;   // roll right
-
-    // Opposing keys cancel
     if (keys['w'] && keys['s']) throttle = HOVER;
     if (keys['a'] && keys['d']) yaw = 0;
     if (keys['ArrowUp'] && keys['ArrowDown']) pitch = 0;
@@ -482,37 +615,25 @@ async function sendControlCommand() {
         const r = await fetch('/api/control/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                timestamp: 0,  // server injects real timestamp
-                roll, pitch, yaw, throttle,
-                duration: 1.0
-            })
+            body: JSON.stringify({ timestamp: 0, roll, pitch, yaw, throttle, duration: 1.0 })
         });
         const d = await r.json();
         const latency = (performance.now() - t0).toFixed(0);
         document.getElementById('ctrl-latency').textContent = latency + 'ms';
-        if (!d.success) {
-            document.getElementById('ctrl-latency').textContent += ' [' + d.message + ']';
-        }
+        if (!d.success) document.getElementById('ctrl-latency').textContent += ' [' + d.message + ']';
     } catch (e) {
         document.getElementById('ctrl-latency').textContent = 'SEND FAILED';
-        document.getElementById('ctrl-latency').style.color = '#ff4444';
     }
 }
 
 // --- Land ---
 async function landDrone() {
     controlEnabled = false;
-    if (controlLoop) {
-        clearInterval(controlLoop);
-        controlLoop = null;
-    }
+    if (controlLoop) { clearInterval(controlLoop); controlLoop = null; }
     Object.keys(keys).forEach(k => keys[k] = false);
     updateKeyVisuals();
-
     await apiPost('/api/control/disable');
     await apiPost('/api/mode', { mode: 'land' });
-
     document.getElementById('btn-ctrl').textContent = 'ENABLE CONTROL';
     document.getElementById('btn-ctrl').className = 'btn btn-enable';
     document.getElementById('ctrl-status').textContent = 'LANDING';
@@ -531,18 +652,9 @@ const keyMap = {
 
 document.addEventListener('keydown', (e) => {
     if (e.repeat) return;
-
-    // Normalize key for WASD (case insensitive)
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     keys[k] = true;
-
-    // Space = land
-    if (e.key === ' ') {
-        e.preventDefault();
-        landDrone();
-        return;
-    }
-
+    if (e.key === ' ') { e.preventDefault(); landDrone(); return; }
     if (keyMap[e.key] || keyMap[k]) e.preventDefault();
     updateKeyVisuals();
 });
@@ -553,7 +665,6 @@ document.addEventListener('keyup', (e) => {
     updateKeyVisuals();
 });
 
-// Safety: clear all keys when window loses focus
 window.addEventListener('blur', () => {
     Object.keys(keys).forEach(k => keys[k] = false);
     updateKeyVisuals();
