@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NovaROS Control</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospace; font-size: 14px; }
+.top-bar { background: #1a1a2e; padding: 10px 20px; display: flex; gap: 20px; align-items: center; border-bottom: 1px solid #333; }
+.indicator { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.green { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+.dot.red { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
+.dot.yellow { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
+.dot.gray { background: #555; }
+.main { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100vh - 42px); }
+.panel { background: #16213e; border-right: 1px solid #333; padding: 15px; overflow-y: auto; }
+.panel h3 { color: #7799cc; margin-bottom: 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+.telem-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+.telem-val { color: #00ddff; }
+.section { margin-bottom: 20px; }
+.btn { padding: 8px 16px; border: 1px solid #444; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px; background: #1a1a2e; color: #d0d0d0; transition: 0.15s; }
+.btn:hover { border-color: #888; }
+.btn:active { transform: scale(0.97); }
+.btn-arm { border-color: #00ff88; color: #00ff88; }
+.btn-arm:hover { background: #00ff8822; }
+.btn-disarm { border-color: #ff4444; color: #ff4444; }
+.btn-disarm:hover { background: #ff444422; }
+.btn-mode { min-width: 70px; }
+.btn-mode.active { background: #3344aa; border-color: #5566dd; color: #fff; }
+.btn-enable { padding: 12px 24px; font-size: 15px; font-weight: bold; border-color: #00ff88; color: #00ff88; }
+.btn-enable:hover { background: #00ff8822; }
+.btn-enable.active { background: #00ff88; color: #000; }
+.btn-disable { padding: 12px 24px; font-size: 15px; font-weight: bold; border-color: #ff4444; color: #ff4444; }
+.btn-disable:hover { background: #ff444422; }
+.btn-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+.center-panel { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.control-area { display: flex; gap: 60px; align-items: center; margin-top: 10px; }
+.key-group { text-align: center; }
+.key-group-label { color: #7799cc; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; }
+.key-row { display: flex; gap: 4px; justify-content: center; margin: 4px 0; }
+.key {
+    width: 52px; height: 44px; border: 2px solid #333; border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; background: #1a1a2e; transition: 0.1s;
+}
+.key .sub { font-size: 9px; color: #888; font-weight: normal; }
+.key.pressed { background: #3344aa; border-color: #5566dd; color: #fff; box-shadow: 0 0 10px #3344aa88; }
+.key.space { width: 200px; }
+.key.space.pressed { background: #aa2222; border-color: #ff4444; box-shadow: 0 0 15px #ff444488; }
+.status-bar { background: #1a1a2e; border-top: 1px solid #333; padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; position: fixed; bottom: 0; width: 100%; }
+.status-bar .val { color: #00ddff; }
+.log { color: #888; max-width: 500px; }
+.emergency { color: #ff4444; font-size: 12px; margin-top: 5px; }
+.control-status { text-align: center; font-size: 13px; margin-top: 10px; }
+.control-status .enabled { color: #00ff88; font-weight: bold; }
+.control-status .disabled { color: #888; }
+.latency { color: #ffaa00; }
+.motors { display: flex; gap: 15px; margin-top: 10px; }
+.motor { text-align: center; }
+.motor .num { font-size: 11px; color: #888; }
+.motor .pwm { font-size: 16px; color: #00ddff; font-weight: bold; }
+.motor-bar { width: 30px; height: 80px; background: #1a1a2e; border: 1px solid #333; border-radius: 3px; position: relative; overflow: hidden; margin: 4px auto; }
+.motor-fill { position: absolute; bottom: 0; width: 100%; background: #3344aa; transition: height 0.2s; }
+.tuner { width: 100%; max-width: 360px; margin-top: 5px; }
+.tuner-wrap { text-align: center; margin-top: 10px; }
+.tuner-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; max-width: 360px; margin: 2px auto 0; }
+.tuner-val { color: #00ddff; font-size: 13px; margin-top: 4px; }
+input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: #1a1a2e; border: 1px solid #444; border-radius: 3px; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #3344aa; border: 2px solid #5566dd; cursor: pointer; }
+.tuner-btn { padding: 4px 12px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <strong style="color:#7799cc;">NOVAROS</strong>
+    <div class="indicator">
+        <div class="dot" id="dot-conn"></div>
+        <span id="lbl-conn">---</span>
+    </div>
+    <div class="indicator">
+        <div class="dot" id="dot-armed"></div>
+        <span id="lbl-armed">---</span>
+    </div>
+    <div class="indicator">
+        <span>Mode:</span>
+        <span id="lbl-mode" style="color:#ffaa00;">---</span>
+    </div>
+    <div class="indicator">
+        <span>Bat:</span>
+        <span id="lbl-bat" class="telem-val">---</span>
+    </div>
+    <div class="indicator">
+        <span>Alt:</span>
+        <span id="lbl-alt" class="telem-val">---</span>
+    </div>
+    <div class="indicator">
+        <span>Hdg:</span>
+        <span id="lbl-hdg" class="telem-val">---</span>
+    </div>
+</div>
+
+<div class="main">
+    <div class="panel">
+        <div class="section">
+            <h3>Commands</h3>
+            <div class="btn-grid">
+                <button class="btn btn-arm" onclick="apiPost('/api/arm')">ARM</button>
+                <button class="btn btn-disarm" onclick="apiPost('/api/disarm')">DISARM</button>
+                <button class="btn btn-disarm" onclick="apiPost('/api/disarm/force')">FORCE DISARM</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Flight Mode</h3>
+            <div class="btn-grid">
+                <button class="btn btn-mode" onclick="setMode('stabilize')">STAB</button>
+                <button class="btn btn-mode" onclick="setMode('alt_hold')">ALT_H</button>
+                <button class="btn btn-mode" onclick="setMode('loiter')">LOIT</button>
+                <button class="btn btn-mode" onclick="setMode('rtl')">RTL</button>
+                <button class="btn btn-mode" onclick="setMode('land')">LAND</button>
+                <button class="btn btn-mode" onclick="setMode('guided')">GUID</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Telemetry</h3>
+            <div class="telem-row"><span>Voltage</span><span class="telem-val" id="t-volt">--</span></div>
+            <div class="telem-row"><span>Current</span><span class="telem-val" id="t-curr">--</span></div>
+            <div class="telem-row"><span>Battery</span><span class="telem-val" id="t-pct">--</span></div>
+            <div class="telem-row"><span>Rel Alt</span><span class="telem-val" id="t-alt">--</span></div>
+            <div class="telem-row"><span>Heading</span><span class="telem-val" id="t-hdg">--</span></div>
+            <div class="telem-row"><span>GPS Fix</span><span class="telem-val" id="t-fix">--</span></div>
+            <div class="telem-row"><span>Sats</span><span class="telem-val" id="t-sats">--</span></div>
+            <div class="telem-row"><span>HDOP</span><span class="telem-val" id="t-hdop">--</span></div>
+            <div class="telem-row"><span>Lat</span><span class="telem-val" id="t-lat">--</span></div>
+            <div class="telem-row"><span>Lon</span><span class="telem-val" id="t-lon">--</span></div>
+            <div class="telem-row"><span>GSpd</span><span class="telem-val" id="t-gspd">--</span></div>
+            <div class="telem-row"><span>VSpd</span><span class="telem-val" id="t-vspd">--</span></div>
+            <div class="telem-row"><span>Temp</span><span class="telem-val" id="t-temp">--</span></div>
+            <div class="telem-row"><span>Pressure</span><span class="telem-val" id="t-pres">--</span></div>
+        </div>
+
+        <div class="section">
+            <h3>Motors</h3>
+            <div class="motors" id="motors"></div>
+        </div>
+
+        <div class="section">
+            <h3>FCU Status</h3>
+            <div id="t-status" style="color:#ffaa00; font-size:12px;">--</div>
+        </div>
+    </div>
+
+    <div class="center-panel">
+        <div>
+            <button class="btn btn-enable" id="btn-ctrl" onclick="toggleControl()">ENABLE CONTROL</button>
+            <div class="control-status">
+                <span id="ctrl-status" class="disabled">Control disabled</span>
+                <span class="latency" id="ctrl-latency"></span>
+            </div>
+        </div>
+
+        <div class="control-area">
+            <div class="key-group">
+                <div class="key-group-label">Throttle / Yaw (WASD)</div>
+                <div class="key-row">
+                    <div class="key" id="k-w">W<span class="sub">climb</span></div>
+                </div>
+                <div class="key-row">
+                    <div class="key" id="k-a">A<span class="sub">yaw L</span></div>
+                    <div class="key" id="k-s">S<span class="sub">desc</span></div>
+                    <div class="key" id="k-d">D<span class="sub">yaw R</span></div>
+                </div>
+            </div>
+
+            <div class="key-group">
+                <div class="key-group-label">Pitch / Roll (Arrows)</div>
+                <div class="key-row">
+                    <div class="key" id="k-up">&uarr;<span class="sub">fwd</span></div>
+                </div>
+                <div class="key-row">
+                    <div class="key" id="k-left">&larr;<span class="sub">roll L</span></div>
+                    <div class="key" id="k-down">&darr;<span class="sub">back</span></div>
+                    <div class="key" id="k-right">&rarr;<span class="sub">roll R</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="key-row">
+                <div class="key space" id="k-space">SPACE<span class="sub">LAND</span></div>
+            </div>
+        </div>
+
+        <div class="tuner-wrap">
+            <div style="color:#7799cc; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Flight Feel</div>
+            <input type="range" class="tuner" id="tuner" min="0" max="100" value="50" oninput="applyTuner(this.value)">
+            <div class="tuner-labels"><span>Gentle</span><span>Default</span><span>Sport</span></div>
+            <div class="tuner-val" id="tuner-val">Default (50%)</div>
+            <button class="btn tuner-btn" onclick="document.getElementById('tuner').value=50; applyTuner(50);">Reset Default</button>
+        </div>
+
+        <div style="font-size:12px; color:#666; max-width:400px; text-align:center; line-height:1.6; margin-top:10px;">
+            Set STABILIZE, ALT_HOLD, or LOITER first, then enable control.<br>
+            Release all keys = hover in place. Tab away = hover in place (failsafe).<br>
+            SPACE = switch to LAND mode (auto-land).
+        </div>
+
+        <div class="control-status">
+            <span>TX: </span><span id="tx-enabled" class="disabled">--</span>
+            &nbsp;|&nbsp; Failsafe: <span id="tx-failsafe">--</span>
+            &nbsp;|&nbsp; Hold: <span id="tx-hold">--</span>
+        </div>
+    </div>
+</div>
+
+<div class="status-bar">
+    <span>Log: <span id="log" class="log">Ready</span></span>
+</div>
+
+<script>
+const keys = {};
+let controlEnabled = false;
+let controlLoop = null;
+let telemLoop = null;
+
+// --- Tuner profiles ---
+// [gentle, default, sport] — slider interpolates between these
+const PROFILES = {
+    pitchRoll:    [0.20, 0.40, 0.85],
+    yaw:          [0.15, 0.30, 0.60],
+    thrUp:        [0.12, 0.25, 0.45],
+    thrDown:      [0.10, 0.20, 0.35],
+    expo:         [0.50, 0.30, 0.05],
+    yawExpo:      [0.40, 0.20, 0.05],
+    smoothing:    [0.35, 0.70, 0.95],
+    yawSmooth:    [0.25, 0.50, 0.85],
+    thrSmooth:    [0.50, 0.80, 0.95],
+    rateLimit:    [1.5,  3.0,  6.0],
+    yawRate:      [1.0,  2.0,  4.0],
+    thrRate:      [0.8,  1.5,  3.0],
+};
+
+// Current stick values (modified by tuner)
+let stickPitchRoll = 0.40;
+let stickYaw = 0.30;
+let stickThrUp = 0.25;
+let stickThrDown = 0.20;
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function applyTuner(val) {
+    val = parseInt(val);
+    // 0-50 = gentle..default, 50-100 = default..sport
+    let t, lo, hi;
+    if (val <= 50) {
+        t = val / 50;  // 0..1
+        lo = 0; hi = 1;  // gentle..default indices
+    } else {
+        t = (val - 50) / 50;  // 0..1
+        lo = 1; hi = 2;  // default..sport indices
+    }
+
+    stickPitchRoll = lerp(PROFILES.pitchRoll[lo], PROFILES.pitchRoll[hi], t);
+    stickYaw       = lerp(PROFILES.yaw[lo],       PROFILES.yaw[hi],       t);
+    stickThrUp     = lerp(PROFILES.thrUp[lo],      PROFILES.thrUp[hi],     t);
+    stickThrDown   = lerp(PROFILES.thrDown[lo],    PROFILES.thrDown[hi],   t);
+
+    // Label
+    let label = val < 30 ? 'Gentle' : val < 70 ? 'Default' : 'Sport';
+    document.getElementById('tuner-val').textContent = label + ' (' + val + '%)';
+
+    // Push expo/smoothing/rate config to virtual TX
+    const config = {
+        roll_expo:         lerp(PROFILES.expo[lo],      PROFILES.expo[hi],      t),
+        pitch_expo:        lerp(PROFILES.expo[lo],      PROFILES.expo[hi],      t),
+        yaw_expo:          lerp(PROFILES.yawExpo[lo],   PROFILES.yawExpo[hi],   t),
+        roll_smoothing:    lerp(PROFILES.smoothing[lo],  PROFILES.smoothing[hi], t),
+        pitch_smoothing:   lerp(PROFILES.smoothing[lo],  PROFILES.smoothing[hi], t),
+        yaw_smoothing:     lerp(PROFILES.yawSmooth[lo],  PROFILES.yawSmooth[hi], t),
+        throttle_smoothing:lerp(PROFILES.thrSmooth[lo],  PROFILES.thrSmooth[hi], t),
+        roll_rate_limit:   lerp(PROFILES.rateLimit[lo],  PROFILES.rateLimit[hi], t),
+        pitch_rate_limit:  lerp(PROFILES.rateLimit[lo],  PROFILES.rateLimit[hi], t),
+        yaw_rate_limit:    lerp(PROFILES.yawRate[lo],    PROFILES.yawRate[hi],   t),
+        throttle_rate_limit:lerp(PROFILES.thrRate[lo],   PROFILES.thrRate[hi],   t),
+    };
+    fetch('/api/control/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    });
+}
+
+// --- Telemetry polling ---
+function startTelemetry() {
+    updateTelemetry();
+    telemLoop = setInterval(updateTelemetry, 500);
+}
+
+async function updateTelemetry() {
+    try {
+        const r = await fetch('/api/telemetry');
+        const d = await r.json();
+
+        // Top bar
+        const conn = d.state.connected;
+        const armed = d.state.armed;
+        document.getElementById('dot-conn').className = 'dot ' + (conn ? 'green' : 'red');
+        document.getElementById('lbl-conn').textContent = conn ? 'Connected' : 'Disconnected';
+        document.getElementById('dot-armed').className = 'dot ' + (armed ? 'red' : 'gray');
+        document.getElementById('lbl-armed').textContent = armed ? 'ARMED' : 'Disarmed';
+        document.getElementById('lbl-mode').textContent = d.state.mode;
+        document.getElementById('lbl-bat').textContent = d.battery.voltage.toFixed(1) + 'V';
+        document.getElementById('lbl-alt').textContent = d.relative_alt.toFixed(1) + 'm';
+        document.getElementById('lbl-hdg').textContent = d.heading.toFixed(0) + '\u00b0';
+
+        // Mode buttons
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            const m = btn.textContent.trim();
+            const modeMap = { 'STAB': 'STABILIZE', 'ALT_H': 'ALT_HOLD', 'LOIT': 'LOITER', 'RTL': 'RTL', 'LAND': 'LAND', 'GUID': 'GUIDED' };
+            btn.classList.toggle('active', d.state.mode === modeMap[m]);
+        });
+
+        // Telemetry panel
+        document.getElementById('t-volt').textContent = d.battery.voltage.toFixed(2) + ' V';
+        document.getElementById('t-curr').textContent = d.battery.current.toFixed(2) + ' A';
+        document.getElementById('t-pct').textContent = (d.battery.percentage * 100).toFixed(0) + '%';
+        document.getElementById('t-alt').textContent = d.relative_alt.toFixed(2) + ' m';
+        document.getElementById('t-hdg').textContent = d.heading.toFixed(1) + '\u00b0';
+        document.getElementById('t-fix').textContent = d.gps.fix_type;
+        document.getElementById('t-sats').textContent = d.gps.satellites;
+        document.getElementById('t-hdop').textContent = d.gps.hdop;
+        document.getElementById('t-lat').textContent = d.gps.latitude.toFixed(6);
+        document.getElementById('t-lon').textContent = d.gps.longitude.toFixed(6);
+        document.getElementById('t-gspd').textContent = d.vfr_hud.groundspeed.toFixed(1) + ' m/s';
+        document.getElementById('t-vspd').textContent = d.vfr_hud.climb_rate.toFixed(1) + ' m/s';
+        document.getElementById('t-temp').textContent = d.baro.temperature.toFixed(1) + '\u00b0C';
+        document.getElementById('t-pres').textContent = (d.baro.pressure / 100).toFixed(1) + ' hPa';
+        document.getElementById('t-status').textContent = d.status_text;
+
+        // Motors
+        const mc = d.rc_out.channels.slice(0, 4);
+        const mEl = document.getElementById('motors');
+        if (mc.length > 0) {
+            mEl.innerHTML = mc.map((pwm, i) => {
+                const pct = Math.max(0, Math.min(100, ((pwm - 1000) / 1000) * 100));
+                return `<div class="motor">
+                    <div class="num">M${i + 1}</div>
+                    <div class="motor-bar"><div class="motor-fill" style="height:${pct}%"></div></div>
+                    <div class="pwm">${pwm}</div>
+                </div>`;
+            }).join('');
+        }
+    } catch (e) {
+        document.getElementById('dot-conn').className = 'dot red';
+        document.getElementById('lbl-conn').textContent = 'API Error';
+    }
+
+    // TX status
+    try {
+        const r2 = await fetch('/api/control/status');
+        const tx = await r2.json();
+        document.getElementById('tx-enabled').textContent = tx.enabled ? 'ON' : 'OFF';
+        document.getElementById('tx-enabled').className = tx.enabled ? 'enabled' : 'disabled';
+        document.getElementById('tx-failsafe').textContent = tx.in_failsafe ? 'YES' : 'no';
+        document.getElementById('tx-failsafe').style.color = tx.in_failsafe ? '#ff4444' : '#888';
+        document.getElementById('tx-hold').textContent = tx.hold_remaining.toFixed(1) + 's';
+    } catch (e) {}
+}
+
+// --- API calls ---
+async function apiPost(url, body) {
+    try {
+        const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        const r = await fetch(url, opts);
+        const d = await r.json();
+        log(d.message || JSON.stringify(d));
+        return d;
+    } catch (e) {
+        log('ERROR: ' + e.message);
+        return null;
+    }
+}
+
+async function setMode(mode) {
+    await apiPost('/api/mode', { mode: mode });
+}
+
+function log(msg) {
+    document.getElementById('log').textContent = msg;
+}
+
+// --- Control ---
+async function toggleControl() {
+    if (controlEnabled) {
+        stopControl();
+    } else {
+        await startControl();
+    }
+}
+
+async function startControl() {
+    // Check current mode allows manual control
+    const telem = await fetch('/api/telemetry/state').then(r => r.json());
+    const mode = telem.mode;
+    const manualModes = ['STABILIZE', 'ALT_HOLD', 'LOITER'];
+    if (!manualModes.includes(mode)) {
+        log('Set STABILIZE, ALT_HOLD, or LOITER first (current: ' + mode + ')');
+        return;
+    }
+
+    // Enable virtual TX
+    log('Enabling virtual TX...');
+    const txRes = await apiPost('/api/control/enable');
+    if (!txRes || !txRes.success) {
+        log('Failed to enable TX: ' + (txRes ? txRes.message : 'no response'));
+        return;
+    }
+
+    controlEnabled = true;
+    document.getElementById('btn-ctrl').textContent = 'DISABLE CONTROL';
+    document.getElementById('btn-ctrl').className = 'btn btn-disable';
+    document.getElementById('ctrl-status').textContent = 'CONTROL ACTIVE';
+    document.getElementById('ctrl-status').className = 'enabled';
+    log('Control enabled - ' + mode + ' mode - use WASD + arrows');
+
+    // Start sending commands at 5Hz
+    controlLoop = setInterval(sendControlCommand, 200);
+}
+
+async function stopControl() {
+    controlEnabled = false;
+    if (controlLoop) {
+        clearInterval(controlLoop);
+        controlLoop = null;
+    }
+    Object.keys(keys).forEach(k => keys[k] = false);
+    updateKeyVisuals();
+
+    await apiPost('/api/control/disable');
+
+    document.getElementById('btn-ctrl').textContent = 'ENABLE CONTROL';
+    document.getElementById('btn-ctrl').className = 'btn btn-enable';
+    document.getElementById('ctrl-status').textContent = 'Control disabled';
+    document.getElementById('ctrl-status').className = 'disabled';
+    document.getElementById('ctrl-latency').textContent = '';
+    log('Control disabled');
+}
+
+async function sendControlCommand() {
+    if (!controlEnabled) return;
+
+    // ALT_HOLD throttle: 0.44 = mid-stick = hold altitude
+    const HOVER = 0.44;
+
+    let roll = 0, pitch = 0, yaw = 0, throttle = HOVER;
+
+    // WASD - throttle / yaw
+    if (keys['w']) throttle = HOVER + stickThrUp;    // climb
+    if (keys['s']) throttle = HOVER - stickThrDown;  // descend
+    if (keys['a']) yaw = -stickYaw;                  // yaw left
+    if (keys['d']) yaw = stickYaw;                   // yaw right
+
+    // Arrows - pitch / roll
+    if (keys['ArrowUp']) pitch = -stickPitchRoll;    // forward (nose down)
+    if (keys['ArrowDown']) pitch = stickPitchRoll;   // backward (nose up)
+    if (keys['ArrowLeft']) roll = -stickPitchRoll;   // roll left
+    if (keys['ArrowRight']) roll = stickPitchRoll;   // roll right
+
+    // Opposing keys cancel
+    if (keys['w'] && keys['s']) throttle = HOVER;
+    if (keys['a'] && keys['d']) yaw = 0;
+    if (keys['ArrowUp'] && keys['ArrowDown']) pitch = 0;
+    if (keys['ArrowLeft'] && keys['ArrowRight']) roll = 0;
+
+    const t0 = performance.now();
+    try {
+        const r = await fetch('/api/control/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                timestamp: 0,  // server injects real timestamp
+                roll, pitch, yaw, throttle,
+                duration: 1.0
+            })
+        });
+        const d = await r.json();
+        const latency = (performance.now() - t0).toFixed(0);
+        document.getElementById('ctrl-latency').textContent = latency + 'ms';
+        if (!d.success) {
+            document.getElementById('ctrl-latency').textContent += ' [' + d.message + ']';
+        }
+    } catch (e) {
+        document.getElementById('ctrl-latency').textContent = 'SEND FAILED';
+        document.getElementById('ctrl-latency').style.color = '#ff4444';
+    }
+}
+
+// --- Land ---
+async function landDrone() {
+    controlEnabled = false;
+    if (controlLoop) {
+        clearInterval(controlLoop);
+        controlLoop = null;
+    }
+    Object.keys(keys).forEach(k => keys[k] = false);
+    updateKeyVisuals();
+
+    await apiPost('/api/control/disable');
+    await apiPost('/api/mode', { mode: 'land' });
+
+    document.getElementById('btn-ctrl').textContent = 'ENABLE CONTROL';
+    document.getElementById('btn-ctrl').className = 'btn btn-enable';
+    document.getElementById('ctrl-status').textContent = 'LANDING';
+    document.getElementById('ctrl-status').className = 'disabled';
+    document.getElementById('ctrl-status').style.color = '#ffaa00';
+    log('LAND mode activated');
+}
+
+// --- Key handling ---
+const keyMap = {
+    'w': 'k-w', 's': 'k-s', 'a': 'k-a', 'd': 'k-d',
+    'W': 'k-w', 'S': 'k-s', 'A': 'k-a', 'D': 'k-d',
+    'ArrowUp': 'k-up', 'ArrowDown': 'k-down', 'ArrowLeft': 'k-left', 'ArrowRight': 'k-right',
+    ' ': 'k-space'
+};
+
+document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+
+    // Normalize key for WASD (case insensitive)
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys[k] = true;
+
+    // Space = land
+    if (e.key === ' ') {
+        e.preventDefault();
+        landDrone();
+        return;
+    }
+
+    if (keyMap[e.key] || keyMap[k]) e.preventDefault();
+    updateKeyVisuals();
+});
+
+document.addEventListener('keyup', (e) => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys[k] = false;
+    updateKeyVisuals();
+});
+
+// Safety: clear all keys when window loses focus
+window.addEventListener('blur', () => {
+    Object.keys(keys).forEach(k => keys[k] = false);
+    updateKeyVisuals();
+});
+
+function updateKeyVisuals() {
+    Object.entries(keyMap).forEach(([key, id]) => {
+        const k = key.length === 1 ? key.toLowerCase() : key;
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('pressed', !!keys[k]);
+    });
+}
+
+// --- Init ---
+startTelemetry();
+</script>
+</body>
+</html>

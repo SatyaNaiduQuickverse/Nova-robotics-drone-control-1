@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: novaros-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=novaros
+      - MONGO_INITDB_ROOT_PASSWORD=novaros_secure_pwd
+
+volumes:
+  mongodb_data:
