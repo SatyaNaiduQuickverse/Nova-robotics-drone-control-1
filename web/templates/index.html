@@ -6,7 +6,16 @@
 <title>NovaROS Control</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospace; font-size: 14px; }
+body {
+    background: #0f0f1a; color: #e0e0e0;
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'Menlo', 'DejaVu Sans Mono', monospace;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga" 0, "calt" 0;
+}
+input, button, select, textarea { font-family: inherit; }
 .top-bar { background: #1a1a2e; padding: 10px 20px; display: flex; gap: 20px; align-items: center; border-bottom: 1px solid #333; }
 .indicator { display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -14,7 +23,7 @@ body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospac
 .dot.red { background: #ff4444; box-shadow: 0 0 6px #ff4444; }
 .dot.yellow { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
 .dot.gray { background: #555; }
-.main { display: grid; grid-template-columns: 220px 1fr 260px; gap: 0; height: calc(100vh - 72px); }
+.main { display: grid; grid-template-columns: 220px 1fr 260px; gap: 0; height: calc(100vh - 72px - 28px); }
 .panel { background: #16213e; border-right: 1px solid #333; padding: 12px; overflow-y: auto; }
 .panel-r { background: #16213e; border-left: 1px solid #333; padding: 12px; overflow-y: auto; }
 .panel h3, .panel-r h3 { color: #7799cc; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
@@ -35,7 +44,7 @@ body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospac
 .btn-disable { padding: 12px 24px; font-size: 15px; font-weight: bold; border-color: #ff4444; color: #ff4444; }
 .btn-disable:hover { background: #ff444422; }
 .btn-grid { display: flex; gap: 5px; flex-wrap: wrap; }
-.center-panel { padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+.center-panel { padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 15px; overflow-y: auto; }
 .control-area { display: flex; gap: 50px; align-items: center; margin-top: 5px; }
 .key-group { text-align: center; }
 .key-group-label { color: #7799cc; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; }
@@ -49,11 +58,35 @@ body { background: #0f0f1a; color: #d0d0d0; font-family: 'Courier New', monospac
 .key.pressed { background: #3344aa; border-color: #5566dd; color: #fff; box-shadow: 0 0 10px #3344aa88; }
 .key.space { width: 180px; }
 .key.space.pressed { background: #aa2222; border-color: #ff4444; box-shadow: 0 0 15px #ff444488; }
+.console { background: #0a0a14; border: 1px solid #333; border-radius: 4px; min-height: 160px; overflow-y: auto; padding: 6px 10px; font-size: 11px; font-family: 'Courier New', monospace; width: 100%; max-width: 480px; flex-shrink: 0; }
+.console-hdr { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 480px; padding: 0 2px; }
+.console-hdr span { color: #7799cc; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+.console-hdr button { background: none; border: none; color: #555; cursor: pointer; font-family: inherit; font-size: 10px; }
+.console-hdr button:hover { color: #ff4444; }
 .status-bar { background: #1a1a2e; border-top: 1px solid #333; padding: 6px 20px; font-size: 12px; display: flex; gap: 20px; position: fixed; bottom: 0; width: 100%; }
 .log { color: #888; }
+.cameras { display: flex; gap: 10px; justify-content: center; align-items: flex-start; width: 100%; }
+.camera-wrap { position: relative; height: 260px; background: #000; border: 1px solid #333; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.camera-wrap[data-cam="landing"]      { aspect-ratio: 16 / 9; }  /* 1280x720 */
+.camera-wrap[data-cam="tracking"]     { aspect-ratio: 16 / 9; }  /* Lenovo USB 1280x720 */
+.camera-wrap[data-cam="vrx_loopback"] { aspect-ratio: 5 / 4;  }  /* PAL 720x576 */
+.camera-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.camera-label { position: absolute; top: 6px; left: 8px; background: rgba(0,0,0,0.7); color: #0f8; font-size: 10px; padding: 2px 6px; border-radius: 3px; z-index: 2; pointer-events: none; font-weight: bold; letter-spacing: 1px; }
+.camera-fps { position: absolute; top: 6px; right: 8px; background: rgba(0,0,0,0.7); color: #0f8; font-size: 10px; padding: 2px 6px; border-radius: 3px; z-index: 2; pointer-events: none; }
+.camera-offline { position: absolute; inset: 0; background: #111; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; text-align: center; padding: 8px; }
 .control-status { text-align: center; font-size: 12px; margin-top: 5px; }
 .control-status .enabled { color: #00ff88; font-weight: bold; }
 .control-status .disabled { color: #888; }
+
+/* VTX broadcast source switcher — picks which feed (front cam, YOLO
+   annotated, ground placeholder, or black) gets transmitted out the
+   analog VTX. Backed by /api/vtx/source on drone-control. */
+.vtx-bar { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 6px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; flex-wrap: wrap; }
+.vtx-bar-label { color: #7799cc; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+.vtx-btn { padding: 6px 14px; border: 1px solid #444; background: #222; color: #bbb; font-family: monospace; font-size: 11px; cursor: pointer; border-radius: 4px; letter-spacing: 1px; }
+.vtx-btn:hover { background: #2a2a2a; border-color: #666; color: #fff; }
+.vtx-btn.active { background: #00ff8822; border-color: #00ff88; color: #00ff88; font-weight: bold; }
+.vtx-btn:disabled { opacity: 0.5; cursor: wait; }
 .latency { color: #ffaa00; }
 .motors { display: flex; gap: 10px; }
 .motor { text-align: center; }
@@ -69,7 +102,19 @@ input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; backgr
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3344aa; border: 2px solid #5566dd; cursor: pointer; }
 .tuner-btn { padding: 3px 10px; font-size: 10px; }
 .sep { border-top: 1px solid #333; margin: 8px 0; }
+.msg-EMERGENCY,.msg-ALERT,.msg-CRITICAL { color: #ff4444; }
+.msg-ERROR { color: #ff6644; }
+.msg-WARNING { color: #ffaa00; }
+.msg-NOTICE { color: #00ddff; }
+.msg-INFO { color: #888; }
+.msg-DEBUG { color: #555; }
+.pl-idle { color: #888; }
+.pl-searching { color: #ffaa00; }
+.pl-descending { color: #00ff88; }
+.pl-complete { color: #00ddff; }
+.pl-aborted { color: #ff4444; }
 </style>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 </head>
 <body>
 
@@ -99,6 +144,10 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
         <span>Hdg:</span>
         <span id="lbl-hdg" class="telem-val">---</span>
     </div>
+    <a href="/vision" target="_blank"
+       style="margin-left:auto; padding:6px 14px; border:1px solid #00ddff; color:#00ddff; border-radius:4px; text-decoration:none; font-size:12px; text-transform:uppercase; letter-spacing:1px;">
+        Object Detection
+    </a>
 </div>
 
 <div class="main">
@@ -137,6 +186,8 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
             <button class="btn" onclick="document.getElementById('wpl-file').click()" style="font-size:10px; margin-top:4px; width:100%;">Load from file</button>
         </div>
 
+        <div class="sep"></div>
+
         <div class="section">
             <h3>Motors</h3>
             <div class="motors" id="motors"></div>
@@ -147,10 +198,6 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
             <div id="rc-in" style="font-size:11px; color:#888;">--</div>
         </div>
 
-        <div class="section">
-            <h3>FCU Status</h3>
-            <div id="t-status" style="color:#ffaa00; font-size:11px;">--</div>
-        </div>
 
         <div class="section">
             <h3>TX Status</h3>
@@ -164,6 +211,35 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
 
     <!-- CENTER: Controls -->
     <div class="center-panel">
+        <div class="cameras">
+            <div class="camera-wrap" data-cam="landing">
+                <div class="camera-offline">Landing cam connecting...</div>
+                <img style="display:none;" alt="Landing camera">
+                <div class="camera-label">LANDING</div>
+                <div class="camera-fps">-- fps</div>
+            </div>
+            <div class="camera-wrap" data-cam="tracking">
+                <div class="camera-offline">Tracking cam connecting...</div>
+                <img style="display:none;" alt="Tracking camera">
+                <div class="camera-label">TRACKING</div>
+                <div class="camera-fps">-- fps</div>
+            </div>
+            <div class="camera-wrap" data-cam="vrx_loopback">
+                <div class="camera-offline">VRX loopback connecting...</div>
+                <img style="display:none;" alt="VRX loopback received">
+                <div class="camera-label">VRX RX</div>
+                <div class="camera-fps">-- fps</div>
+            </div>
+        </div>
+
+        <div class="vtx-bar" id="vtx-bar">
+            <span class="vtx-bar-label">VTX BROADCAST →</span>
+            <button class="vtx-btn" data-src="front"  onclick="setVtxSource('front')">FRONT</button>
+            <button class="vtx-btn" data-src="vision" onclick="setVtxSource('vision')">VISION</button>
+            <button class="vtx-btn" data-src="ground" onclick="setVtxSource('ground')">GROUND</button>
+            <button class="vtx-btn" data-src="black"  onclick="setVtxSource('black')">BLACK</button>
+        </div>
+
         <div>
             <button class="btn btn-enable" id="btn-ctrl" onclick="toggleControl()">ENABLE CONTROL</button>
             <div class="control-status">
@@ -196,26 +272,538 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
                     <div class="key" id="k-right">&rarr;<span class="sub">roll R</span></div>
                 </div>
             </div>
-        </div>
 
-        <div>
-            <div class="key-row">
-                <div class="key space" id="k-space">SPACE<span class="sub">LAND</span></div>
+            <div style="flex-shrink:0;">
+                <div class="console-hdr">
+                    <span>FCU Console</span>
+                    <button onclick="document.getElementById('fcu-msgs').innerHTML='';">Clear</button>
+                </div>
+                <div class="console" id="fcu-msgs" style="width:380px; min-height:180px; height:180px;"></div>
             </div>
         </div>
 
-        <div class="tuner-wrap">
-            <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Flight Feel</div>
-            <input type="range" class="tuner" id="tuner" min="0" max="100" value="50" oninput="applyTuner(this.value)">
-            <div class="tuner-labels"><span>Gentle</span><span>Default</span><span>Sport</span></div>
-            <div class="tuner-val" id="tuner-val">Default (50%)</div>
-            <button class="btn tuner-btn" onclick="document.getElementById('tuner').value=50; applyTuner(50);">Reset Default</button>
+        <div style="display:flex; gap:40px; justify-content:center; align-items:flex-start; width:100%;">
+            <div>
+                <div class="key-row">
+                    <div class="key space" id="k-space">SPACE<span class="sub">LAND</span></div>
+                </div>
+                <div class="tuner-wrap" style="margin-top:10px;">
+                    <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Flight Feel</div>
+                    <input type="range" class="tuner" id="tuner" min="0" max="100" value="50" oninput="applyTuner(this.value)">
+                    <div class="tuner-labels"><span>Gentle</span><span>Default</span><span>Sport</span></div>
+                    <div class="tuner-val" id="tuner-val">Default (50%)</div>
+                    <button class="btn tuner-btn" onclick="document.getElementById('tuner').value=50; applyTuner(50);">Reset Default</button>
+                </div>
+                <div style="font-size:10px; color:#555; max-width:180px; line-height:1.4; margin-top:6px;">
+                    Set STABILIZE, ALT_HOLD, or LOITER first.<br>
+                    Release keys = hover. Tab = failsafe.
+                </div>
+            </div>
+
+            <div>
+                <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Precision Land</div>
+                <div class="btn-grid" style="margin-bottom:6px;">
+                    <button class="btn btn-arm" id="btn-pland" onclick="precisionLand()">AUTO LAND</button>
+                    <button class="btn btn-disarm" onclick="abortLand()">ABORT</button>
+                </div>
+                <div style="font-size:11px;">
+                    <div class="telem-row"><span>State</span><span id="pl-state" style="color:#888;">idle</span></div>
+                    <div class="telem-row"><span>QR</span><span id="pl-qr" style="color:#888;">--</span></div>
+                    <div class="telem-row"><span>Error X</span><span id="pl-ex" class="telem-val">--</span></div>
+                    <div class="telem-row"><span>Error Y</span><span id="pl-ey" class="telem-val">--</span></div>
+                    <div class="telem-row"><span>QR Size</span><span id="pl-ratio" class="telem-val">--</span></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">PID Tuning</div>
+                <div id="pid-main" style="font-size:11px;"></div>
+                <div style="margin-top:4px; font-size:10px; color:#555; cursor:pointer;" onclick="document.getElementById('pid-adv-wrap').style.display=document.getElementById('pid-adv-wrap').style.display==='none'?'block':'none';">
+                    &#9662; Advanced
+                </div>
+                <div id="pid-adv-wrap" style="display:none;">
+                    <div id="pid-adv" style="font-size:11px; margin-top:4px;"></div>
+                </div>
+                <div style="display:flex; gap:4px; margin-top:6px;">
+                    <button class="btn" onclick="savePidConfig()" style="font-size:10px; flex:1;">Save</button>
+                    <button class="btn" onclick="resetPidDefaults()" style="font-size:10px; flex:1; color:#888;">Defaults</button>
+                </div>
+            </div>
         </div>
 
-        <div style="font-size:11px; color:#555; max-width:380px; text-align:center; line-height:1.5;">
-            Set STABILIZE, ALT_HOLD, or LOITER first, then enable control.<br>
-            Release all keys = hover. Tab away = failsafe hover. SPACE = LAND.
+        <div style="width:100%; max-width:750px; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="color:#7799cc; font-size:12px; text-transform:uppercase; letter-spacing:1px;">FC Motor Tuning</span>
+                <span id="fc-status" style="font-size:11px; color:#555;"></span>
+            </div>
+            <div style="display:flex; gap:20px; align-items:flex-start;">
+                <div style="flex-shrink:0;">
+                    <canvas id="thrust-canvas" width="200" height="200" style="border:1px solid #333; border-radius:4px; background:#0a0a14;"></canvas>
+                    <div style="font-size:10px; color:#555; text-align:center; margin-top:4px;">Stick position → Thrust output</div>
+                    <button class="btn" onclick="loadFcParams()" style="font-size:11px; width:100%; margin-top:8px;" id="btn-fc-load">Load from FC</button>
+                </div>
+                <div style="flex:1;">
+                    <table id="fc-params-table" style="width:100%; font-size:12px; border-collapse:collapse;">
+                        <thead>
+                            <tr style="color:#7799cc; font-size:10px; text-transform:uppercase; border-bottom:1px solid #333;">
+                                <th style="text-align:left; padding:4px;">Param</th>
+                                <th style="text-align:right; padding:4px;">FC Value</th>
+                                <th style="text-align:right; padding:4px;">New</th>
+                                <th style="padding:4px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="fc-params-body">
+                            <tr><td colspan="4" style="color:#555; padding:10px; text-align:center;">Click "Load from FC" to read parameters</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="display:flex; gap:4px; margin-top:8px;">
+                        <button class="btn btn-arm" onclick="writeFcParams()" style="font-size:11px; flex:1;" id="btn-fc-write">Write All to FC</button>
+                    </div>
+                    <div style="font-size:10px; color:#aaa; margin-top:10px; line-height:1.6;">
+                        <div style="color:#7799cc; margin-bottom:3px;">Quick reference:</div>
+                        <b>THST_EXPO</b> — Thrust curve. 0.65=linear, 0.85=gentle low-end. Raise for overpowered builds.<br>
+                        <b>SPIN_MAX</b> — Max motor output cap. 0.95=full. Set 0.75 to limit power by 25%.<br>
+                        <b>SPIN_MIN</b> — Idle motor speed when armed. Typically 0.10–0.15.<br>
+                        <b>RATE_*_MAX</b> — Max rotation (deg/s). 0=use default (720/720/200). Lower for stability.
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <div style="width:100%; max-width:750px; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="color:#7799cc; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Trim</span>
+                <span id="trim-status" style="font-size:12px; color:#888;"></span>
+            </div>
+            <div style="background:#0a0a14; border:1px solid #2a2a3e; border-radius:4px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#b0b0c0; line-height:1.7;">
+                <div style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">When to use which</div>
+                <b style="color:#00ddff;">Airframe Trim (AHRS)</b> — fixes the drone drifting in a direction during hover. Use this for <b>weight imbalance</b> (off-center battery, asymmetric payload) or a crooked FC mount. <b>Active in every flight mode</b>, including LOITER and autonomous. Typical range ±2°. Procedure: hover in ALT_HOLD with no wind, observe drift direction, dial in opposite trim, repeat.<br>
+                <b style="color:#00ddff;">TX Stick Trim (RCx_TRIM)</b> — the PWM value the FC treats as "stick centered" for each channel. Set by Mission Planner radio calibration to whatever your TX actually outputs at rest (often not exactly 1500). <b>Only active in manual stick modes.</b> Don't use this to fix weight imbalance — it won't help in LOITER and will fight your calibration. Leave alone unless you know why you're changing it.<br>
+                <span style="color:#888;">Rule: drift in LOITER → AHRS. Sticks feel off-center on the TX → recalibrate in Mission Planner, don't hand-edit RCx_TRIM.</span>
+            </div>
+            <div style="display:flex; gap:20px; align-items:flex-start;">
+                <div style="flex:1;">
+                    <div style="color:#7799cc; font-size:10px; text-transform:uppercase; margin-bottom:4px;">Airframe Trim (AHRS) — all modes</div>
+                    <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                        <thead>
+                            <tr style="color:#7799cc; font-size:10px; border-bottom:1px solid #333;">
+                                <th style="text-align:left; padding:4px;">Axis</th>
+                                <th style="text-align:right; padding:4px;">FC (°)</th>
+                                <th style="text-align:right; padding:4px;">New (°)</th>
+                                <th style="padding:4px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="trim-ahrs-body">
+                            <tr><td colspan="4" style="color:#555; padding:10px; text-align:center;">Click "Load Trim"</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="font-size:10px; color:#888; margin-top:4px; line-height:1.5;">
+                        +Roll = right wing down. +Pitch = nose down. Use for weight imbalance / crooked FC mount.
+                    </div>
+                </div>
+                <div style="flex:1;">
+                    <div style="color:#7799cc; font-size:10px; text-transform:uppercase; margin-bottom:4px;">TX Stick Trim (RCx_TRIM) — manual modes</div>
+                    <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                        <thead>
+                            <tr style="color:#7799cc; font-size:10px; border-bottom:1px solid #333;">
+                                <th style="text-align:left; padding:4px;">Channel</th>
+                                <th style="text-align:right; padding:4px;">FC</th>
+                                <th style="text-align:right; padding:4px;">New (%)</th>
+                                <th style="padding:4px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="trim-rc-body">
+                            <tr><td colspan="4" style="color:#555; padding:10px; text-align:center;">Click "Load Trim"</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="font-size:10px; color:#888; margin-top:4px; line-height:1.5;">
+                        PWM center per stick. Default 1500. Leave at 1500 if trimming on the TX itself.
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; gap:4px; margin-top:10px;">
+                <button class="btn" onclick="loadTrimParams()" style="font-size:11px; flex:1;" id="btn-trim-load">Load Trim</button>
+                <button class="btn btn-arm" onclick="writeTrimParams()" style="font-size:11px; flex:1;" id="btn-trim-write">Write Changed</button>
+                <button class="btn" onclick="zeroTrim()" style="font-size:11px; flex:1;">Zero All</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ SAFETY & GEOFENCE ═══════════════════ -->
+        <div style="width:100%; max-width:750px; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="color:#7799cc; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Safety & Geofence</span>
+                <span style="display:flex; gap:6px; align-items:center;">
+                    <span id="safety-status" style="font-size:12px; color:#888;"></span>
+                    <button class="btn" onclick="loadSafety()" style="font-size:10px; padding:3px 10px;" id="btn-safety-load">Load</button>
+                </span>
+            </div>
+            <div style="background:#0a0a14; border:1px solid #2a2a3e; border-radius:4px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#b0b0c0; line-height:1.6;">
+                Configure flight-controller failsafes and the geofence boundary. Each section has its own <b>Save</b> button — changes are written to the FC immediately and persist across reboots. Click <b>Load</b> to refresh from the FC.
+            </div>
+
+            <!-- RC link failsafe -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">RC Link Failsafe</span>
+                    <span id="rcfs-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:8px; line-height:1.6;">
+                    If the RC transmitter signal is lost (out of range, TX off, receiver dead), the FC will take the action below.
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-end;">
+                    <label style="flex:1; display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">On RC loss, do:</span>
+                        <select id="rcfs-action" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                            <option value="disabled">Disabled (not recommended)</option>
+                            <option value="rtl" selected>Return home (RTL)</option>
+                            <option value="land">Land in place</option>
+                            <option value="smart_rtl">SmartRTL then land</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-arm" onclick="saveRcFs()" style="font-size:11px; padding:6px 14px;" id="btn-rcfs-save">Save</button>
+                </div>
+            </div>
+
+            <!-- GCS link failsafe -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">GCS Link Failsafe</span>
+                    <span id="gcsfs-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:8px; line-height:1.6;">
+                    Triggered when MAVLink heartbeats from the ground station stop arriving. Timeout = how long to wait before acting.
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr auto; gap:8px; align-items:flex-end;">
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">On GCS loss, do:</span>
+                        <select id="gcsfs-action" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                            <option value="disabled">Disabled</option>
+                            <option value="rtl" selected>Return home (RTL)</option>
+                            <option value="smart_rtl">SmartRTL then land</option>
+                            <option value="land">Land in place</option>
+                            <option value="brake">Brake then land</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Timeout (s)</span>
+                        <input id="gcsfs-timeout" type="number" min="1" max="30" step="0.5" value="5"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <button class="btn btn-arm" onclick="saveGcsFs()" style="font-size:11px; padding:6px 14px;" id="btn-gcsfs-save">Save</button>
+                </div>
+            </div>
+
+            <!-- Battery failsafe -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Battery Failsafe</span>
+                    <span id="battfs-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:8px; line-height:1.6;">
+                    Two-tier voltage monitoring. <b>Low</b> triggers a graceful response (e.g. RTL). <b>Critical</b> is last-ditch. Set either voltage to <b>0</b> to disable that tier. Rule of thumb: 3S pack ≈ 10.5 V / 10.0 V &nbsp;·&nbsp; 4S ≈ 14.0 V / 13.6 V &nbsp;·&nbsp; 6S ≈ 21.0 V / 20.4 V.
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-bottom:6px;">
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Low volt (V)</span>
+                        <input id="bfs-low-v" type="number" min="0" max="60" step="0.1" value="10.5"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Low action</span>
+                        <select id="bfs-low-act" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                            <option value="rtl" selected>Return home (RTL)</option>
+                            <option value="smart_rtl">SmartRTL then land</option>
+                            <option value="land">Land in place</option>
+                            <option value="none">⚠ No action (warn only)</option>
+                        </select>
+                    </label>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-bottom:6px;">
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Crit volt (V)</span>
+                        <input id="bfs-crit-v" type="number" min="0" max="60" step="0.1" value="10.0"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Critical action</span>
+                        <select id="bfs-crit-act" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                            <option value="land" selected>Land in place</option>
+                            <option value="smart_rtl">SmartRTL then land</option>
+                            <option value="terminate">Terminate (⚠ disarms in air)</option>
+                            <option value="none">⚠ No action (warn only)</option>
+                        </select>
+                    </label>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-end;">
+                    <label style="flex:1; display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Trigger delay (s)</span>
+                        <input id="bfs-timer" type="number" min="0" max="120" step="1" value="10"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <button class="btn btn-arm" onclick="saveBattFs()" style="font-size:11px; padding:6px 14px;" id="btn-battfs-save">Save</button>
+                </div>
+                <div style="font-size:10px; color:#666; margin-top:6px;">Voltage must stay below threshold for this duration before the action fires (avoids false trips on throttle sag).</div>
+            </div>
+
+            <!-- Advanced failsafe options -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Failsafe Behavior</span>
+                    <span id="fsopt-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:8px; line-height:1.6;">
+                    Fine-tune how the failsafes above interact with the current flight mode.
+                </div>
+                <label style="display:flex; gap:8px; font-size:12px; padding:4px 0; cursor:pointer;">
+                    <input type="checkbox" id="fsopt-landing" checked style="margin-top:2px;">
+                    <span><b>Don't interrupt landing</b> — if a failsafe fires while the drone is already landing, let the landing finish. <b style="color:#00ff88;">Recommended ON.</b></span>
+                </label>
+                <label style="display:flex; gap:8px; font-size:12px; padding:4px 0; cursor:pointer;">
+                    <input type="checkbox" id="fsopt-auto-rc" style="margin-top:2px;">
+                    <span><b>Continue AUTO mission on RC loss</b> — keep running the mission instead of aborting.</span>
+                </label>
+                <label style="display:flex; gap:8px; font-size:12px; padding:4px 0; cursor:pointer;">
+                    <input type="checkbox" id="fsopt-auto-gcs" style="margin-top:2px;">
+                    <span><b>Continue AUTO mission on GCS loss</b> — keep running the mission instead of aborting.</span>
+                </label>
+                <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                    <button class="btn btn-arm" onclick="saveFsOptions()" style="font-size:11px; padding:6px 14px;" id="btn-fsopt-save">Save</button>
+                </div>
+            </div>
+
+            <!-- Geofence -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Geofence</span>
+                    <span id="fence-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:8px; line-height:1.6;">
+                    Invisible walls the drone can't cross. Combine a <b>ceiling</b>, <b>floor</b>, <b>circle around home</b>, and a custom <b>polygon</b> zone. Breach action fires the moment any enabled boundary is crossed.
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                    <label style="display:flex; gap:8px; font-size:12px; padding:4px 0; cursor:pointer;">
+                        <input type="checkbox" id="fence-enable" style="margin-top:2px;">
+                        <span><b>Fence active</b></span>
+                    </label>
+                    <label style="display:flex; gap:8px; font-size:12px; padding:4px 0; cursor:pointer;">
+                        <input type="checkbox" id="fence-autoenable" checked style="margin-top:2px;">
+                        <span><b>Auto-enable on arm</b></span>
+                    </label>
+                </div>
+
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:10px;">
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">On breach, do:</span>
+                        <select id="fence-action" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                            <option value="report">Report only (warn, don't act)</option>
+                            <option value="rtl" selected>Return home / land</option>
+                            <option value="land">Land in place</option>
+                            <option value="smart_rtl">SmartRTL / RTL / land</option>
+                            <option value="brake">Brake / land</option>
+                            <option value="smart_rtl_land">SmartRTL / land</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Buffer (m)</span>
+                        <input id="fence-margin" type="number" min="0" max="20" step="0.5" value="2"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                </div>
+
+                <div style="color:#7799cc; font-size:10px; text-transform:uppercase; margin-bottom:4px;">Fence types</div>
+                <div style="background:#0a0a14; border:1px solid #2a2a3e; border-radius:3px; padding:8px 10px; margin-bottom:10px;">
+                    <div style="display:grid; grid-template-columns:auto 1fr 90px 20px; gap:8px; align-items:center; font-size:12px; margin-bottom:6px;">
+                        <input type="checkbox" id="fence-ceil-on">
+                        <label for="fence-ceil-on"><b>Ceiling</b> — max altitude above home</label>
+                        <input id="fence-ceil-m" type="number" min="5" max="1000" step="5" value="100"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:4px 6px; font-family:inherit; font-size:12px; text-align:right;">
+                        <span style="color:#666; font-size:10px;">m</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:auto 1fr 90px 20px; gap:8px; align-items:center; font-size:12px; margin-bottom:6px;">
+                        <input type="checkbox" id="fence-floor-on">
+                        <label for="fence-floor-on"><b>Floor</b> — min altitude above home</label>
+                        <input id="fence-floor-m" type="number" min="-100" max="100" step="1" value="-5"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:4px 6px; font-family:inherit; font-size:12px; text-align:right;">
+                        <span style="color:#666; font-size:10px;">m</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:auto 1fr 90px 20px; gap:8px; align-items:center; font-size:12px; margin-bottom:6px;">
+                        <input type="checkbox" id="fence-circle-on">
+                        <label for="fence-circle-on"><b>Circle</b> — radius around home</label>
+                        <input id="fence-radius-m" type="number" min="30" max="10000" step="10" value="300"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:4px 6px; font-family:inherit; font-size:12px; text-align:right;">
+                        <span style="color:#666; font-size:10px;">m</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:auto 1fr 90px 20px; gap:8px; align-items:center; font-size:12px;">
+                        <input type="checkbox" id="fence-poly-on">
+                        <label for="fence-poly-on"><b>Polygon zone</b> — see editor below</label>
+                        <span style="color:#666; font-size:10px; text-align:right; grid-column:span 2;">via upload</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:6px; margin-bottom:14px;">
+                    <button class="btn btn-arm" onclick="saveFence()" style="font-size:11px; flex:1;" id="btn-fence-save">Save Fence Config</button>
+                    <button class="btn" onclick="applyFenceDefaults()" style="font-size:11px; flex:0 0 auto;" id="btn-fence-defaults">Defaults</button>
+                </div>
+
+                <div style="color:#7799cc; font-size:10px; text-transform:uppercase; margin-bottom:4px;">Polygon points</div>
+                <div style="font-size:11px; color:#888; margin-bottom:6px; line-height:1.6;">
+                    One <code>lat, lon</code> pair per line in decimal degrees. Need <b>at least 3 points</b>. Don't repeat the first point — the FC closes the loop automatically. Uploading replaces any existing polygon.
+                </div>
+                <textarea id="fence-polygon" rows="6" spellcheck="false"
+                    placeholder="12.9352, 77.6245&#10;12.9354, 77.6251&#10;12.9348, 77.6252"
+                    style="width:100%; background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:6px 8px; font-family:inherit; font-size:12px; box-sizing:border-box; resize:vertical;"></textarea>
+                <div style="display:grid; grid-template-columns:1fr auto; gap:6px; align-items:center; margin-top:6px;">
+                    <label style="display:flex; gap:6px; font-size:11px; align-items:center;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Type:</span>
+                        <select id="fence-poly-type" style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:4px 6px; font-family:inherit; font-size:12px;">
+                            <option value="inclusion" selected>Inclusion (must stay inside)</option>
+                            <option value="exclusion">Exclusion (must stay outside)</option>
+                        </select>
+                    </label>
+                    <span id="fence-poly-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <button class="btn btn-arm" onclick="uploadPolygon()" style="font-size:11px; flex:1;" id="btn-poly-upload">Upload Polygon</button>
+                    <button class="btn btn-disarm" onclick="clearPolygon()" style="font-size:11px; flex:0 0 auto;" id="btn-poly-clear">Clear Polygon</button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:6px;">
+                <button class="btn" onclick="applySafetyDefaults()" style="font-size:11px; flex:1;" id="btn-safety-defaults">Load Safe Defaults (all failsafes)</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ CALIBRATION ═══════════════════ -->
+        <div style="width:100%; max-width:750px; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="color:#7799cc; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Calibration</span>
+                <span id="cal-status" style="font-size:12px; color:#888;"></span>
+            </div>
+            <div style="background:#0a0a14; border:1px solid #2a2a3e; border-radius:4px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#b0b0c0; line-height:1.7;">
+                <b style="color:#ff6644;">⚠ SAFETY:</b> All calibrations require the drone to be <b>disarmed</b>. For <b>Motor Test</b>, <b>remove propellers</b> — the FC will spin motors on command. Stay clear of the frame.
+            </div>
+
+            <!-- Motor Test Card -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Motor Test</span>
+                    <span id="mt-status" style="font-size:11px; color:#888;"></span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:10px; line-height:1.6;">
+                    Spin individual motors at a set throttle to verify wiring, direction, and order. Props <b style="color:#ff6644;">must be off</b>.
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; font-size:11px;">
+                    <label style="display:flex; flex-direction:column; gap:3px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Throttle %</span>
+                        <input id="mt-throttle" type="number" min="0" max="50" step="1" value="8"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Duration (s)</span>
+                        <input id="mt-duration" type="number" min="0.5" max="10" step="0.5" value="2"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:3px;">
+                        <span style="color:#7799cc; text-transform:uppercase; font-size:10px;">Motor Count</span>
+                        <input id="mt-count" type="number" min="1" max="8" step="1" value="4"
+                            style="background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:5px 7px; font-family:inherit; font-size:12px;">
+                    </label>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:8px;">
+                    <button class="btn" onclick="runMotorTest('single', 1)" style="font-size:11px;">Test M1</button>
+                    <button class="btn" onclick="runMotorTest('single', 2)" style="font-size:11px;">Test M2</button>
+                    <button class="btn" onclick="runMotorTest('single', 3)" style="font-size:11px;">Test M3</button>
+                    <button class="btn" onclick="runMotorTest('single', 4)" style="font-size:11px;">Test M4</button>
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:6px;">
+                    <button class="btn btn-arm" onclick="runMotorTest('sequence', 1)" style="font-size:11px;">Test Sequence (Frame Order)</button>
+                    <button class="btn btn-disarm" onclick="stopMotorTest()" style="font-size:11px;">STOP</button>
+                </div>
+                <div style="font-size:10px; color:#666; margin-top:8px; line-height:1.5;">
+                    Frame-order sequence spins M1→M2→…→M<i>count</i> for <i>duration</i> each, letting you verify correct wiring & prop rotation. Start at 5–10% throttle for a bench test.
+                </div>
+            </div>
+
+            <!-- One-click Cals -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase; margin-bottom:8px;">One-Click Calibrations</div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                    <div>
+                        <button class="btn" onclick="runOneClickCal('gyro', 'btn-cal-gyro')" id="btn-cal-gyro" style="font-size:11px; width:100%;">Calibrate Gyro</button>
+                        <div style="font-size:10px; color:#888; margin-top:4px; line-height:1.4;">Drone must be still and level. Runs in ~3s.</div>
+                    </div>
+                    <div>
+                        <button class="btn" onclick="runOneClickCal('level_horizon', 'btn-cal-level')" id="btn-cal-level" style="font-size:11px; width:100%;">Level Horizon</button>
+                        <div style="font-size:10px; color:#888; margin-top:4px; line-height:1.4;">Place on a level surface. Auto-writes AHRS_TRIM_X/Y.</div>
+                    </div>
+                    <div>
+                        <button class="btn" onclick="runOneClickCal('baro', 'btn-cal-baro')" id="btn-cal-baro" style="font-size:11px; width:100%;">Zero Baro</button>
+                        <div style="font-size:10px; color:#888; margin-top:4px; line-height:1.4;">Reset ground pressure datum. Run before arming.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compass Calibration Card -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Compass Calibration</span>
+                    <span id="cc-state" style="font-size:11px; color:#888;">idle</span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:10px; line-height:1.6;">
+                    Rotate the drone slowly through <b>all axes</b> (roll, pitch, yaw — imagine drawing a sphere with the nose). Aim for ~60s of continuous rotation. Autosave is on, so a successful cal is written automatically.
+                </div>
+                <div style="display:flex; gap:12px; align-items:flex-start; margin-bottom:8px;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:3px; height:22px; position:relative; margin-bottom:4px; overflow:hidden;">
+                            <div id="cc-bar" style="background:linear-gradient(90deg, #3344aa 0%, #00ddff 100%); height:100%; width:0%; transition:width 0.3s;"></div>
+                            <div id="cc-bar-label" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:#e0e0e0; text-shadow:0 0 3px #000;">0%</div>
+                        </div>
+                        <div id="cc-last-msg" style="font-size:10px; color:#666; min-height:14px; margin-bottom:4px;">—</div>
+                        <div id="cc-last-result" style="font-size:11px; color:#888; min-height:14px;"></div>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        <canvas id="cc-sphere" width="180" height="180" style="background:#0a0a14; border:1px solid #2a2a3e; border-radius:4px; display:block;"></canvas>
+                        <div style="font-size:9px; color:#666; text-align:center; margin-top:3px;">green = covered · red = gap</div>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:6px;">
+                    <button class="btn btn-arm" onclick="startCompassCal()" id="btn-cc-start" style="font-size:11px;">Start Compass Cal</button>
+                    <button class="btn" onclick="acceptCompassCal()" style="font-size:11px;">Accept</button>
+                    <button class="btn" onclick="rebootFc()" style="font-size:11px;">Reboot FC</button>
+                    <button class="btn btn-disarm" onclick="cancelCompassCal()" style="font-size:11px;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Accelerometer Calibration Card -->
+            <div style="background:#0f1020; border:1px solid #2a2a3e; border-radius:4px; padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="color:#00ddff; font-size:12px; font-weight:bold; text-transform:uppercase;">Accelerometer Calibration</span>
+                    <span id="ac-state" style="font-size:11px; color:#888;">idle</span>
+                </div>
+                <div style="font-size:11px; color:#888; margin-bottom:10px; line-height:1.6;">
+                    Six-position cal. Place the drone in each orientation, hold it steady, and press <b>Captured — Next</b>. Takes ~1 minute total. Use <b>Simple</b> for a quick level-only trim when you just need to re-zero the horizon.
+                </div>
+
+                <!-- Position indicator dots -->
+                <div id="ac-dots" style="display:flex; gap:6px; justify-content:center; margin-bottom:10px;"></div>
+
+                <!-- Active position card -->
+                <div id="ac-active" style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:4px; padding:10px; margin-bottom:10px; min-height:60px;">
+                    <div id="ac-label" style="color:#7799cc; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Not started</div>
+                    <div id="ac-instruction" style="color:#e0e0e0; font-size:13px; line-height:1.5;">Click "Start Accel Cal" to begin the 6-position sequence.</div>
+                </div>
+
+                <div id="ac-last-msg" style="font-size:10px; color:#666; min-height:14px; margin-bottom:8px;">—</div>
+
+                <div style="display:grid; grid-template-columns:1fr 2fr 1fr; gap:6px;">
+                    <button class="btn" onclick="startAccelCal('simple')" style="font-size:11px;">Simple (level only)</button>
+                    <button class="btn btn-arm" onclick="accelNext()" id="btn-ac-next" style="font-size:11px;">Start Accel Cal</button>
+                    <button class="btn btn-disarm" onclick="resetAccelCal()" style="font-size:11px;">Reset</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- RIGHT PANEL: All Telemetry -->
@@ -384,6 +972,12 @@ async function updateTelemetry() {
         const r = await fetch('/api/telemetry');
         const d = await r.json();
 
+        // Feed raw mag vector into the compass coverage sphere while a cal
+        // is running. We normalize here so the sphere only shows direction.
+        if (_compassState === 'running' && d.mag) {
+            addCompassSamplePoint(d.mag.x, d.mag.y, d.mag.z);
+        }
+
         // Top bar
         const conn = d.state.connected;
         const armed = d.state.armed;
@@ -465,8 +1059,16 @@ async function updateTelemetry() {
         const landedMap = { 0: 'Unknown', 1: 'On Ground', 2: 'In Air', 3: 'Takeoff', 4: 'Landing' };
         document.getElementById('t-landed').textContent = landedMap[d.extended_state.landed_state] || d.extended_state.landed_state;
 
-        // FCU status
-        document.getElementById('t-status').textContent = d.status_text;
+        // FCU messages
+        const msgEl = document.getElementById('fcu-msgs');
+        const msgs = d.messages || [];
+        processCalMessages(msgs);
+        const wasAtBottom = msgEl.scrollTop + msgEl.clientHeight >= msgEl.scrollHeight - 5;
+        msgEl.innerHTML = msgs.map(m => {
+            const ts = new Date(m.t * 1000).toLocaleTimeString('en-GB', {hour12:false});
+            return `<div class="msg-${m.sev}"><span style="color:#555;">${ts}</span> [${m.sev}] ${m.text}</div>`;
+        }).join('');
+        if (wasAtBottom) msgEl.scrollTop = msgEl.scrollHeight;
 
         // Motors (RC out)
         const mc = d.rc_out.channels.slice(0, 4);
@@ -678,8 +1280,1341 @@ function updateKeyVisuals() {
     });
 }
 
+// --- FC Param Tuning ---
+const FC_PARAMS = [
+    {id:'MOT_THST_EXPO', label:'THST_EXPO', step:0.01},
+    {id:'MOT_SPIN_MAX',  label:'SPIN_MAX',  step:0.01},
+    {id:'MOT_SPIN_MIN',  label:'SPIN_MIN',  step:0.01},
+    {id:'ATC_RATE_R_MAX', label:'RATE_R_MAX', step:1},
+    {id:'ATC_RATE_P_MAX', label:'RATE_P_MAX', step:1},
+    {id:'ATC_RATE_Y_MAX', label:'RATE_Y_MAX', step:1},
+];
+let fcLoaded = {};  // {param_id: fc_value} — reference values from FC
+
+function fcStatus(msg, color) {
+    const el = document.getElementById('fc-status');
+    el.textContent = msg;
+    el.style.color = color || '#888';
+}
+
+async function loadFcParams() {
+    const btn = document.getElementById('btn-fc-load');
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+    fcStatus('Reading FC...', '#ffaa00');
+    try {
+        const r = await fetch('/api/params/batch/get', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({params: FC_PARAMS.map(p=>p.id)})
+        });
+        const vals = await r.json();
+        fcLoaded = {};
+        const body = document.getElementById('fc-params-body');
+        body.innerHTML = FC_PARAMS.map(p => {
+            const v = vals[p.id];
+            const val = v !== null ? parseFloat(v.toFixed(4)) : '--';
+            if (v !== null) fcLoaded[p.id] = val;
+            return `<tr style="border-bottom:1px solid #1a1a2e;">
+                <td style="padding:5px 4px; color:#aaa;">${p.label}</td>
+                <td style="padding:5px 4px; text-align:right; color:#555; font-size:11px;" id="fcv-${p.id}">${val}</td>
+                <td style="padding:5px 4px; text-align:right;">
+                    <input id="fcp-${p.id}" type="number" step="${p.step}" value="${val}"
+                        style="width:70px; background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:3px 5px; font-family:inherit; font-size:12px; text-align:right;"
+                        oninput="onFcParamInput('${p.id}', this)">
+                </td>
+                <td style="padding:5px 2px;">
+                    <button class="btn" onclick="writeSingleFcParam('${p.id}')" style="font-size:10px; padding:3px 8px;" id="fcw-${p.id}">Set</button>
+                </td>
+            </tr>`;
+        }).join('');
+        if (vals['MOT_THST_EXPO'] !== null) drawThrustCurve(vals['MOT_THST_EXPO']);
+        const loaded = Object.keys(fcLoaded).length;
+        fcStatus(`${loaded}/${FC_PARAMS.length} params loaded`, '#00ff88');
+    } catch(e) {
+        fcStatus('Load failed', '#ff4444');
+    }
+    btn.textContent = 'Load from FC';
+    btn.disabled = false;
+}
+
+function onFcParamInput(id, el) {
+    // Highlight changed values
+    const orig = fcLoaded[id];
+    const cur = parseFloat(el.value);
+    el.style.borderColor = (orig !== undefined && Math.abs(cur - orig) > 0.001) ? '#ffaa00' : '#444';
+    if (id === 'MOT_THST_EXPO') drawThrustCurve(cur);
+}
+
+async function writeSingleFcParam(id) {
+    const inp = document.getElementById('fcp-'+id);
+    const btn = document.getElementById('fcw-'+id);
+    if (!inp || inp.value === '--') return;
+    btn.textContent = '...';
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/params/'+id, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({value: parseFloat(inp.value)})
+        });
+        const d = await r.json();
+        if (d.success) {
+            fcLoaded[id] = parseFloat(inp.value);
+            inp.style.borderColor = '#444';
+            document.getElementById('fcv-'+id).textContent = parseFloat(inp.value).toFixed(4);
+            fcStatus(id + ' written', '#00ff88');
+        } else {
+            fcStatus(id + ' failed', '#ff4444');
+        }
+    } catch(e) {
+        fcStatus(id + ' error', '#ff4444');
+    }
+    btn.textContent = 'Set';
+    btn.disabled = false;
+}
+
+async function writeFcParams() {
+    const btn = document.getElementById('btn-fc-write');
+    btn.textContent = 'Writing...';
+    btn.disabled = true;
+    let ok = 0, fail = 0;
+    for (const p of FC_PARAMS) {
+        const inp = document.getElementById('fcp-'+p.id);
+        if (!inp || inp.value === '--') continue;
+        const cur = parseFloat(inp.value);
+        if (fcLoaded[p.id] !== undefined && Math.abs(cur - fcLoaded[p.id]) < 0.001) continue; // skip unchanged
+        try {
+            const r = await fetch('/api/params/'+p.id, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({value: cur})
+            });
+            const d = await r.json();
+            if (d.success) {
+                ok++;
+                fcLoaded[p.id] = cur;
+                inp.style.borderColor = '#444';
+                document.getElementById('fcv-'+p.id).textContent = cur.toFixed(4);
+            } else fail++;
+        } catch(e) { fail++; }
+    }
+    if (ok === 0 && fail === 0) fcStatus('No changes to write', '#888');
+    else fcStatus(`${ok} written` + (fail ? `, ${fail} failed` : ''), fail ? '#ff4444' : '#00ff88');
+    btn.textContent = 'Write All to FC';
+    btn.disabled = false;
+}
+
+// --- Trim (AHRS + RCx_TRIM) ---
+const TRIM_AHRS = [
+    {id:'AHRS_TRIM_X', label:'Roll'},
+    {id:'AHRS_TRIM_Y', label:'Pitch'},
+];
+const TRIM_RC = [
+    {id:'RC1_TRIM', label:'RC1 Roll'},
+    {id:'RC2_TRIM', label:'RC2 Pitch'},
+    {id:'RC4_TRIM', label:'RC4 Yaw'},
+];
+const RAD2DEG = 180 / Math.PI;
+const DEG2RAD = Math.PI / 180;
+let trimLoaded = {};  // raw FC values (rad for AHRS, µs for RC)
+
+function trimStatus(msg, color) {
+    const el = document.getElementById('trim-status');
+    el.textContent = msg;
+    el.style.color = color || '#888';
+}
+
+// UI value -> raw FC value. AHRS: deg->rad. RC: %->µs PWM (0% = 1500, 1% = 5µs).
+function trimUiToRaw(ui, isAhrs) {
+    return isAhrs ? ui * DEG2RAD : 1500 + ui * 5;
+}
+function trimRawToUi(raw, isAhrs) {
+    return isAhrs ? raw * RAD2DEG : (raw - 1500) / 5;
+}
+function onTrimInput(id, el, isAhrs) {
+    const orig = trimLoaded[id];
+    const cur = parseFloat(el.value);
+    if (isNaN(cur)) { el.style.borderColor = '#ff4444'; return; }
+    const curRaw = trimUiToRaw(cur, isAhrs);
+    el.style.borderColor = (orig !== undefined && Math.abs(curRaw - orig) > 1e-5) ? '#ffaa00' : '#444';
+}
+function formatTrimCell(ui, isAhrs) {
+    if (isAhrs) return ui.toFixed(3);
+    const pwm = Math.round(trimUiToRaw(ui, false));
+    const pct = ui.toFixed(1);
+    return `${pwm}µs <span style="color:#666;">(${ui >= 0 ? '+' : ''}${pct}%)</span>`;
+}
+
+async function loadTrimParams() {
+    const btn = document.getElementById('btn-trim-load');
+    btn.textContent = 'Loading...'; btn.disabled = true;
+    trimStatus('Reading FC...', '#ffaa00');
+    const ids = TRIM_AHRS.map(p=>p.id).concat(TRIM_RC.map(p=>p.id));
+    try {
+        const r = await fetch('/api/params/batch/get', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({params: ids})
+        });
+        const vals = await r.json();
+        trimLoaded = {};
+        const inputStyle = 'style="width:80px; background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:3px 5px; font-family:inherit; font-size:12px; text-align:right;"';
+        document.getElementById('trim-ahrs-body').innerHTML = TRIM_AHRS.map(p => {
+            const v = vals[p.id];
+            if (v === null) return `<tr><td colspan="4" style="color:#555; padding:5px 4px;">${p.label}: --</td></tr>`;
+            trimLoaded[p.id] = v;
+            const deg = (v * RAD2DEG).toFixed(3);
+            return `<tr style="border-bottom:1px solid #1a1a2e;">
+                <td style="padding:5px 4px; color:#aaa;">${p.label}</td>
+                <td style="padding:5px 4px; text-align:right; color:#555; font-size:11px;" id="tmv-${p.id}">${deg}</td>
+                <td style="padding:5px 4px; text-align:right;">
+                    <input id="tmp-${p.id}" type="number" step="0.05" min="-10" max="10" value="${deg}" ${inputStyle}
+                        oninput="onTrimInput('${p.id}', this, true)">
+                </td>
+                <td style="padding:5px 2px;">
+                    <button class="btn" onclick="writeTrimSingle('${p.id}', true)" style="font-size:10px; padding:3px 8px;" id="tmw-${p.id}">Set</button>
+                </td>
+            </tr>`;
+        }).join('');
+        document.getElementById('trim-rc-body').innerHTML = TRIM_RC.map(p => {
+            const v = vals[p.id];
+            if (v === null) return `<tr><td colspan="4" style="color:#555; padding:5px 4px;">${p.label}: --</td></tr>`;
+            trimLoaded[p.id] = v;
+            const pwm = Math.round(v);
+            const pct = (pwm - 1500) / 5;  // ±100% maps to ±500µs
+            const pctStr = pct.toFixed(1);
+            return `<tr style="border-bottom:1px solid #1a1a2e;">
+                <td style="padding:5px 4px; color:#b0b0c0;">${p.label}</td>
+                <td style="padding:5px 4px; text-align:right; color:#888; font-size:11px;" id="tmv-${p.id}">${pwm}µs <span style="color:#666;">(${pct >= 0 ? '+' : ''}${pctStr}%)</span></td>
+                <td style="padding:5px 4px; text-align:right;">
+                    <input id="tmp-${p.id}" type="number" step="0.1" min="-10" max="10" value="${pctStr}" ${inputStyle}
+                        oninput="onTrimInput('${p.id}', this, false)">
+                </td>
+                <td style="padding:5px 2px;">
+                    <button class="btn" onclick="writeTrimSingle('${p.id}', false)" style="font-size:10px; padding:3px 8px;" id="tmw-${p.id}">Set</button>
+                </td>
+            </tr>`;
+        }).join('');
+        const loaded = Object.keys(trimLoaded).length;
+        trimStatus(`${loaded}/${ids.length} trim params loaded`, '#00ff88');
+    } catch(e) {
+        trimStatus('Load failed', '#ff4444');
+    }
+    btn.textContent = 'Load Trim'; btn.disabled = false;
+}
+
+async function writeTrimSingle(id, isAhrs) {
+    const inp = document.getElementById('tmp-'+id);
+    const btn = document.getElementById('tmw-'+id);
+    if (!inp) return;
+    const ui = parseFloat(inp.value);
+    if (isNaN(ui)) { trimStatus(id + ' invalid', '#ff4444'); return; }
+    const raw = trimUiToRaw(ui, isAhrs);
+    btn.textContent = '...'; btn.disabled = true;
+    try {
+        const r = await fetch('/api/params/'+id, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({value: raw})
+        });
+        const d = await r.json();
+        if (d.success) {
+            trimLoaded[id] = raw;
+            inp.style.borderColor = '#444';
+            document.getElementById('tmv-'+id).innerHTML = formatTrimCell(ui, isAhrs);
+            trimStatus(id + ' written', '#00ff88');
+        } else {
+            trimStatus(id + ' failed', '#ff4444');
+        }
+    } catch(e) {
+        trimStatus(id + ' error', '#ff4444');
+    }
+    btn.textContent = 'Set'; btn.disabled = false;
+}
+
+async function writeTrimParams() {
+    const btn = document.getElementById('btn-trim-write');
+    btn.textContent = 'Writing...'; btn.disabled = true;
+    let ok = 0, fail = 0;
+    const all = TRIM_AHRS.map(p=>[p.id,true]).concat(TRIM_RC.map(p=>[p.id,false]));
+    for (const [id, isAhrs] of all) {
+        const inp = document.getElementById('tmp-'+id);
+        if (!inp) continue;
+        const ui = parseFloat(inp.value);
+        if (isNaN(ui)) continue;
+        const raw = trimUiToRaw(ui, isAhrs);
+        if (trimLoaded[id] !== undefined && Math.abs(raw - trimLoaded[id]) < 1e-5) continue;
+        try {
+            const r = await fetch('/api/params/'+id, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({value: raw})
+            });
+            const d = await r.json();
+            if (d.success) {
+                ok++;
+                trimLoaded[id] = raw;
+                inp.style.borderColor = '#444';
+                document.getElementById('tmv-'+id).innerHTML = formatTrimCell(ui, isAhrs);
+            } else fail++;
+        } catch(e) { fail++; }
+    }
+    if (ok === 0 && fail === 0) trimStatus('No changes to write', '#888');
+    else trimStatus(`${ok} written` + (fail ? `, ${fail} failed` : ''), fail ? '#ff4444' : '#00ff88');
+    btn.textContent = 'Write Changed'; btn.disabled = false;
+}
+
+function zeroTrim() {
+    for (const p of TRIM_AHRS) {
+        const inp = document.getElementById('tmp-'+p.id);
+        if (inp) { inp.value = '0.000'; onTrimInput(p.id, inp, true); }
+    }
+    for (const p of TRIM_RC) {
+        const inp = document.getElementById('tmp-'+p.id);
+        if (inp) { inp.value = '0.0'; onTrimInput(p.id, inp, false); }
+    }
+    trimStatus('Zeroed — click Write Changed to apply', '#ffaa00');
+}
+
+// --- Calibration ---
+function calStatus(msg, color) {
+    const el = document.getElementById('cal-status');
+    if (el) { el.textContent = msg; el.style.color = color || '#888'; }
+}
+function mtStatus(msg, color) {
+    const el = document.getElementById('mt-status');
+    if (el) { el.textContent = msg; el.style.color = color || '#888'; }
+}
+
+async function runMotorTest(mode, startMotor) {
+    const throttle = parseFloat(document.getElementById('mt-throttle').value);
+    const duration = parseFloat(document.getElementById('mt-duration').value);
+    const count = parseInt(document.getElementById('mt-count').value, 10);
+    if (isNaN(throttle) || isNaN(duration) || isNaN(count)) {
+        mtStatus('Invalid inputs', '#ff4444'); return;
+    }
+    if (throttle > 20) {
+        if (!confirm(`Throttle ${throttle}% is high for a bench test. Props removed? Continue?`)) return;
+    } else if (!confirm(`Start motor test (${mode})? Confirm props are removed.`)) return;
+
+    mtStatus(`Running ${mode} m${startMotor} @ ${throttle}%...`, '#ffaa00');
+    try {
+        const r = await fetch('/api/calibration/motor_test', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                motor: startMotor,
+                throttle_pct: throttle,
+                duration_s: duration,
+                mode: mode,
+                motor_count: mode === 'sequence' ? count : 1,
+            })
+        });
+        const d = await r.json();
+        if (r.ok && d.success) mtStatus(d.message, '#00ff88');
+        else mtStatus((d.detail || d.message || 'Failed'), '#ff4444');
+    } catch(e) {
+        mtStatus('Request error: ' + e, '#ff4444');
+    }
+}
+
+async function stopMotorTest() {
+    mtStatus('STOPPING...', '#ff4444');
+    try {
+        const r = await fetch('/api/calibration/motor_test/stop', {method:'POST'});
+        const d = await r.json();
+        mtStatus(d.message || 'Stopped', '#ffaa00');
+    } catch(e) {
+        mtStatus('Stop request failed', '#ff4444');
+    }
+}
+
+// Compass fitness → quality band (matches ArduPilot thresholds)
+function fitnessQuality(f) {
+    if (f < 4)   return 'excellent';
+    if (f < 8)   return 'good';
+    if (f < 16)  return 'ok';
+    if (f < 32)  return 'poor — redo recommended';
+    return 'very poor — redo required';
+}
+function fitnessColor(f) {
+    if (f < 4)   return '#00ff88';
+    if (f < 8)   return '#6aff88';
+    if (f < 16)  return '#ffdd44';
+    if (f < 32)  return '#ffaa00';
+    return '#ff4444';
+}
+
+// Schedule an automatic FC reboot with a visible countdown and then watch
+// state.connected so the user sees each stage: countdown → sending →
+// waiting for disconnect → waiting for reconnect → done.
+async function scheduleFcReboot(prefix, countdown = 3) {
+    const setMsg = (t) => document.getElementById('cc-last-msg').textContent = t;
+
+    for (let i = countdown; i > 0; i--) {
+        setMsg(`${prefix} · rebooting in ${i}s…`);
+        await new Promise(r => setTimeout(r, 1000));
+    }
+
+    setMsg(`${prefix} · sending reboot command`);
+    try {
+        const r = await fetch('/api/calibration/reboot_fc', {method:'POST'});
+        const d = await r.json();
+        if (!(r.ok && d.success)) {
+            calStatus(d.detail || d.message || 'reboot rejected', '#ff4444');
+            setMsg('reboot rejected');
+            return;
+        }
+    } catch(e) {
+        calStatus('reboot request failed: ' + e, '#ff4444');
+        return;
+    }
+
+    watchFcRebootProgress(setMsg);
+}
+
+// Polls telemetry state.connected through a reboot cycle. Tracks two
+// edges: connected→disconnected (FC is bouncing) and disconnected→
+// connected (FC is back and MAVROS reattached).
+async function watchFcRebootProgress(setMsg) {
+    const deadline = Date.now() + 30000;  // 30s hard cap
+    let sawDisconnect = false;
+
+    while (Date.now() < deadline) {
+        try {
+            const t = await fetch('/api/telemetry').then(r => r.json());
+            const connected = t && t.state && t.state.connected;
+            if (!connected && !sawDisconnect) {
+                sawDisconnect = true;
+                setMsg('FC rebooting · waiting for MAVROS to reattach…');
+            } else if (connected && sawDisconnect) {
+                setMsg('FC back online — compass offsets are now active ✓');
+                calStatus('FC reboot complete', '#00ff88');
+                return;
+            } else if (!sawDisconnect) {
+                setMsg('FC rebooting · waiting for link to drop…');
+            }
+        } catch(e) {}
+        await new Promise(r => setTimeout(r, 500));
+    }
+    setMsg('FC reboot: still waiting after 30s — check telemetry manually');
+    calStatus('FC reboot timeout', '#ffaa00');
+}
+
+// --- Compass Calibration State Machine ---
+// Real progress from MAG_CAL_PROGRESS MAVLink messages decoded server-side
+// from /uas1/mavlink_source. We poll /api/calibration/compass/progress.
+const COMPASS_MIN_DURATION_S = 60;   // rotate-slowly guidance floor
+const COMPASS_STALL_TIMEOUT_S = 30;  // auto-cancel if pct unchanged for this long
+const COMPASS_WALL_TIMEOUT_S  = 300; // hard wall-clock cap so a hung cal can't poll forever
+let _compassState = 'idle';  // idle | running | success | failed | cancelled
+let _compassPollTimer = null;
+let _compassStartT = 0;
+let _compassLastPct = -1;
+let _compassLastPctChangeT = 0;
+
+// --- three.js coverage sphere ---
+// Shows which attitudes have been sampled during a compass cal. Each
+// MAG_CAL_PROGRESS frame gives us the current body-frame gravity
+// direction as a unit vector; we place a green dot on the unit sphere
+// at that point. Uncovered regions stay visible as red reference
+// geometry, so you can see exactly where to rotate next.
+const _compassSphere = {
+    initialized: false,
+    renderer: null, scene: null, camera: null,
+    sphereMesh: null, coveredMesh: null, current: null,
+    coveredIndex: new Set(),
+    coveredGeometry: null,
+    coveredCount: 0,
+    maxPoints: 2000,
+};
+
+function initCompassSphere() {
+    if (_compassSphere.initialized || typeof THREE === 'undefined') return;
+    const canvas = document.getElementById('cc-sphere');
+    if (!canvas) return;
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.setSize(canvas.width, canvas.height, false);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10);
+    camera.position.set(2.2, 1.6, 2.2);
+    camera.lookAt(0, 0, 0);
+
+    // Reference unit sphere — dim red so uncovered area reads as "missing"
+    const sphereMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 24, 16),
+        new THREE.MeshBasicMaterial({color: 0x552222, wireframe:true, transparent:true, opacity:0.55})
+    );
+    scene.add(sphereMesh);
+
+    // Axes for orientation reference
+    const axes = new THREE.AxesHelper(1.25);
+    scene.add(axes);
+
+    // Point cloud for covered directions
+    const coveredGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(_compassSphere.maxPoints * 3);
+    coveredGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    coveredGeometry.setDrawRange(0, 0);
+    const coveredMesh = new THREE.Points(
+        coveredGeometry,
+        new THREE.PointsMaterial({color: 0x00ff88, size: 0.05, sizeAttenuation:true})
+    );
+    scene.add(coveredMesh);
+
+    // Current-direction highlight dot
+    const current = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 12, 8),
+        new THREE.MeshBasicMaterial({color: 0xffdd44})
+    );
+    current.visible = false;
+    scene.add(current);
+
+    Object.assign(_compassSphere, {
+        initialized:true, renderer, scene, camera,
+        sphereMesh, coveredMesh, current, coveredGeometry,
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        // Slow auto-rotation of the scene so the user can read the 3D
+        sphereMesh.rotation.y += 0.004;
+        coveredMesh.rotation.y += 0.004;
+        if (current.visible) current.position.applyAxisAngle(new THREE.Vector3(0,1,0), 0.004);
+        renderer.render(scene, camera);
+    }
+    animate();
+}
+
+function resetCompassSphere() {
+    if (!_compassSphere.initialized) return;
+    _compassSphere.coveredIndex.clear();
+    _compassSphere.coveredCount = 0;
+    _compassSphere.coveredGeometry.setDrawRange(0, 0);
+    _compassSphere.coveredGeometry.attributes.position.needsUpdate = true;
+    _compassSphere.sphereMesh.material.color.setHex(0x552222);
+    _compassSphere.current.visible = false;
+}
+
+function addCompassSamplePoint(x, y, z) {
+    if (!_compassSphere.initialized) return;
+    const n = Math.sqrt(x*x + y*y + z*z);
+    if (n < 1e-6) return;
+    x /= n; y /= n; z /= n;
+
+    // Dedup by rounding to a coarse grid so we don't run out of buffer slots.
+    const key = `${Math.round(x*20)},${Math.round(y*20)},${Math.round(z*20)}`;
+    _compassSphere.current.position.set(x, y, z);
+    _compassSphere.current.visible = true;
+    if (_compassSphere.coveredIndex.has(key)) return;
+    if (_compassSphere.coveredCount >= _compassSphere.maxPoints) return;
+    _compassSphere.coveredIndex.add(key);
+
+    const i = _compassSphere.coveredCount * 3;
+    const pos = _compassSphere.coveredGeometry.attributes.position.array;
+    pos[i] = x; pos[i+1] = y; pos[i+2] = z;
+    _compassSphere.coveredCount += 1;
+    _compassSphere.coveredGeometry.setDrawRange(0, _compassSphere.coveredCount);
+    _compassSphere.coveredGeometry.attributes.position.needsUpdate = true;
+}
+
+function setCompassState(state, msg) {
+    _compassState = state;
+    const stateEl = document.getElementById('cc-state');
+    const colors = { idle:'#888', running:'#ffaa00', success:'#00ff88', failed:'#ff4444', cancelled:'#888' };
+    stateEl.textContent = state;
+    stateEl.style.color = colors[state] || '#888';
+    if (msg) document.getElementById('cc-last-msg').textContent = msg;
+    if (state === 'success') { setCompassBar(100); }
+    else if (state === 'failed' || state === 'cancelled' || state === 'idle') { setCompassBar(0); }
+    const startBtn = document.getElementById('btn-cc-start');
+    if (startBtn) {
+        startBtn.disabled = (state === 'running');
+        startBtn.textContent = state === 'running' ? 'Running…' : 'Start Compass Cal';
+    }
+}
+
+function setCompassBar(pct) {
+    document.getElementById('cc-bar').style.width = pct + '%';
+    document.getElementById('cc-bar-label').textContent = Math.round(pct) + '%';
+}
+
+function compassElapsed() {
+    return _compassStartT ? Math.max(0, (Date.now() / 1000) - _compassStartT) : 0;
+}
+
+async function pollCompassProgress() {
+    // Hard wall-clock cap so a permanently silent FC can't pin the poller.
+    if (compassElapsed() > COMPASS_WALL_TIMEOUT_S && _compassState === 'running') {
+        stopCompassPolling();
+        setCompassState('failed',
+            `wall-clock timeout after ${COMPASS_WALL_TIMEOUT_S}s — no terminal status received`);
+        fetch('/api/calibration/compass/cancel', {method:'POST'}).catch(() => {});
+        return;
+    }
+    try {
+        const r = await fetch('/api/calibration/compass/progress');
+        const s = await r.json();
+        const elapsed = compassElapsed();
+
+        if (s.progress) {
+            const p = s.progress;
+            const now = Date.now() / 1000;
+            const pct = p.completion_pct || 0;
+            setCompassBar(pct);
+            if (p.direction && p.direction.length === 3) {
+                addCompassSamplePoint(p.direction[0], p.direction[1], p.direction[2]);
+            }
+
+            // Stall detection: if percent unchanged for > STALL_TIMEOUT, auto-cancel.
+            if (pct !== _compassLastPct) {
+                _compassLastPct = pct;
+                _compassLastPctChangeT = now;
+            }
+            const stalledFor = _compassLastPctChangeT ? now - _compassLastPctChangeT : 0;
+
+            document.getElementById('cc-last-msg').textContent =
+                `compass ${p.compass_id}: ${p.cal_status_name} · ${pct}% · ` +
+                `elapsed ${elapsed.toFixed(0)}s / min ${COMPASS_MIN_DURATION_S}s` +
+                (stalledFor > 5 ? ` · no progress for ${stalledFor.toFixed(0)}s` : '');
+
+            if (stalledFor > COMPASS_STALL_TIMEOUT_S && _compassState === 'running') {
+                stopCompassPolling();
+                setCompassState('failed',
+                    `STEP_TWO stalled at ${pct}% for ${stalledFor.toFixed(0)}s — auto-cancelling. Redo with diagonal/corner rotations.`);
+                fetch('/api/calibration/compass/cancel', {method:'POST'}).catch(() => {});
+            }
+        } else if (_compassState === 'running') {
+            document.getElementById('cc-last-msg').textContent =
+                `waiting for first progress packet… (${elapsed.toFixed(0)}s)`;
+        }
+
+        if (s.report) {
+            const rep = s.report;
+            const quality = fitnessQuality(rep.fitness);
+            const qColor = fitnessColor(rep.fitness);
+            const tooFast = elapsed < COMPASS_MIN_DURATION_S;
+            const paceNote = tooFast
+                ? ` · <span style="color:#ffaa00;">finished in ${elapsed.toFixed(0)}s (too fast — rotate slower for a lower fitness)</span>`
+                : ` · <span style="color:#888;">${elapsed.toFixed(0)}s</span>`;
+            const resultHTML =
+                `<span style="color:#7799cc;">Last result:</span> ` +
+                `compass ${rep.compass_id} · ${rep.cal_status_name} · ` +
+                `<b style="color:${qColor};">fitness ${rep.fitness.toFixed(2)} (${quality})</b>` +
+                (rep.autosaved ? ' · <span style="color:#00ff88;">saved</span>'
+                               : ' · <span style="color:#ff4444;">NOT saved</span>') +
+                paceNote;
+            document.getElementById('cc-last-result').innerHTML = resultHTML;
+
+            if (rep.cal_status === 4) {
+                setCompassState('success', tooFast
+                    ? `successful but too fast — consider redoing (${elapsed.toFixed(0)}s)`
+                    : 'calibration successful');
+                if (_compassSphere.initialized) _compassSphere.sphereMesh.material.color.setHex(0x225522);
+                stopCompassPolling();
+                // Skip auto-reboot when the run was under the minimum duration:
+                // the offsets are already saved by autosave, but we want the
+                // user to see the warning and decide whether to redo first.
+                if (tooFast && rep.fitness >= 8) {
+                    document.getElementById('cc-last-msg').textContent =
+                        'Not auto-rebooting — redo the cal slower, or click "Reboot FC" to accept these offsets as-is';
+                } else {
+                    scheduleFcReboot('Rebooting Pixhawk to apply compass offsets');
+                }
+            } else if (rep.cal_status >= 5) {
+                setCompassState('failed', `calibration failed (${rep.cal_status_name})`);
+                stopCompassPolling();
+            }
+        }
+    } catch(e) {}
+}
+
+function startCompassPolling() {
+    if (_compassPollTimer) clearInterval(_compassPollTimer);
+    _compassPollTimer = setInterval(pollCompassProgress, 500);
+}
+function stopCompassPolling() {
+    if (_compassPollTimer) { clearInterval(_compassPollTimer); _compassPollTimer = null; }
+}
+
+async function startCompassCal() {
+    if (!confirm(`Start compass calibration? Rotate the drone SLOWLY through all axes — aim for at least ${COMPASS_MIN_DURATION_S} seconds of rotation for a clean fit.`)) return;
+    setCompassState('running', 'sending start command…');
+    _compassStartT = Date.now() / 1000;
+    _compassLastPct = -1;
+    _compassLastPctChangeT = 0;
+    setCompassBar(0);
+    initCompassSphere();
+    resetCompassSphere();
+    try {
+        const r = await fetch('/api/calibration/compass/start', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({autosave: true})
+        });
+        const d = await r.json();
+        if (!(r.ok && d.success)) {
+            setCompassState('failed', d.detail || d.message || 'start rejected');
+            return;
+        }
+        calStatus(d.message, '#ffaa00');
+        startCompassPolling();
+    } catch(e) { setCompassState('failed', 'request error'); }
+}
+
+async function acceptCompassCal() {
+    try {
+        const r = await fetch('/api/calibration/compass/accept', {method:'POST'});
+        const d = await r.json();
+        calStatus(d.message || 'accept sent', r.ok && d.success ? '#00ff88' : '#ff4444');
+    } catch(e) { calStatus('accept error', '#ff4444'); }
+}
+
+async function rebootFc() {
+    if (!confirm('Reboot Pixhawk? Telemetry will drop for ~10s while MAVROS reconnects.')) return;
+    try {
+        const r = await fetch('/api/calibration/reboot_fc', {method:'POST'});
+        const d = await r.json();
+        calStatus(d.message || 'reboot sent', r.ok && d.success ? '#00ff88' : '#ff4444');
+    } catch(e) { calStatus('reboot request failed', '#ff4444'); }
+}
+
+async function cancelCompassCal() {
+    try {
+        const r = await fetch('/api/calibration/compass/cancel', {method:'POST'});
+        const d = await r.json();
+        setCompassState('cancelled', d.message || 'cancelled');
+        stopCompassPolling();
+    } catch(e) { setCompassState('failed', 'cancel error'); }
+}
+
+
+// --- Accelerometer Calibration State Machine ---
+// Six-position flow. FC emits statustext prompts like "Place vehicle LEVEL
+// and press any key". We pattern-match on those to auto-advance the UI's
+// internal position pointer; the user confirms with "Captured — Next" which
+// sends MAV_CMD_ACCELCAL_VEHICLE_POS with the current position number.
+const ACCEL_POSITIONS = [
+    {n:1, label:'LEVEL',      instruction:'Place the drone flat on a level surface, right-side up.',   pattern:/place vehicle level/i},
+    {n:2, label:'LEFT SIDE',  instruction:'Roll the drone onto its LEFT side (left arm pointing down).',pattern:/on its left/i},
+    {n:3, label:'RIGHT SIDE', instruction:'Roll the drone onto its RIGHT side (right arm pointing down).',pattern:/on its right/i},
+    {n:4, label:'NOSE DOWN',  instruction:'Tip the drone NOSE-DOWN (front arms pointing at the floor).',pattern:/nose down/i},
+    {n:5, label:'NOSE UP',    instruction:'Tip the drone NOSE-UP (front arms pointing at the ceiling).',pattern:/nose up/i},
+    {n:6, label:'ON BACK',    instruction:'Flip the drone UPSIDE-DOWN, resting on its top.',           pattern:/on its back/i},
+];
+let _accelState = 'idle';     // idle | running | done | failed
+let _accelPosIdx = 0;          // 0 = not started, 1..6 = current position awaiting capture
+
+function setAccelState(state, msg) {
+    _accelState = state;
+    const el = document.getElementById('ac-state');
+    const colors = { idle:'#888', running:'#ffaa00', done:'#00ff88', failed:'#ff4444' };
+    el.textContent = state;
+    el.style.color = colors[state] || '#888';
+    if (msg) document.getElementById('ac-last-msg').textContent = msg;
+    renderAccelDots();
+    renderAccelActive();
+}
+
+function renderAccelDots() {
+    const container = document.getElementById('ac-dots');
+    container.innerHTML = ACCEL_POSITIONS.map(p => {
+        let bg = '#1a1a2e', border = '#333', color = '#555';
+        if (_accelState === 'done') { bg = '#00ff88'; border = '#00ff88'; color = '#000'; }
+        else if (p.n < _accelPosIdx) { bg = '#00ff88'; border = '#00ff88'; color = '#000'; }
+        else if (p.n === _accelPosIdx) { bg = '#ffaa00'; border = '#ffaa00'; color = '#000'; }
+        return `<div title="${p.label}" style="width:28px; height:28px; border-radius:50%; background:${bg}; border:2px solid ${border}; color:${color}; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">${p.n}</div>`;
+    }).join('');
+}
+
+function renderAccelActive() {
+    const labelEl = document.getElementById('ac-label');
+    const instrEl = document.getElementById('ac-instruction');
+    const btn = document.getElementById('btn-ac-next');
+    if (_accelState === 'idle') {
+        labelEl.textContent = 'Not started';
+        instrEl.textContent = 'Click "Start Accel Cal" to begin the 6-position sequence.';
+        btn.textContent = 'Start Accel Cal';
+    } else if (_accelState === 'running' && _accelPosIdx >= 1 && _accelPosIdx <= 6) {
+        const p = ACCEL_POSITIONS[_accelPosIdx - 1];
+        labelEl.textContent = `Step ${p.n} of 6 — ${p.label}`;
+        instrEl.textContent = p.instruction + ' When steady, click "Captured — Next".';
+        btn.textContent = `Captured — ${_accelPosIdx === 6 ? 'Finish' : 'Next (' + (_accelPosIdx+1) + '/6)'}`;
+    } else if (_accelState === 'done') {
+        labelEl.textContent = 'Complete';
+        instrEl.textContent = 'Accelerometer calibration finished successfully.';
+        btn.textContent = 'Start Accel Cal';
+    } else if (_accelState === 'failed') {
+        labelEl.textContent = 'Failed';
+        instrEl.textContent = 'Calibration failed. Click Reset and try again — make sure the drone is perfectly still at each position.';
+        btn.textContent = 'Start Accel Cal';
+    }
+}
+
+async function startAccelCal(kind) {
+    const path = kind === 'simple' ? '/api/calibration/accel/simple' : '/api/calibration/accel/start';
+    if (kind !== 'simple' && !confirm('Start 6-position accel cal? Expect ~1 minute, 6 orientations.')) return;
+    try {
+        const r = await fetch(path, {method:'POST'});
+        const d = await r.json();
+        if (!(r.ok && d.success)) { setAccelState('failed', d.detail || d.message || 'start rejected'); return; }
+        if (kind === 'simple') {
+            calStatus(d.message, '#00ff88');
+            return;
+        }
+        _accelPosIdx = 1;
+        setAccelState('running', d.message);
+    } catch(e) { setAccelState('failed', 'request error'); }
+}
+
+async function accelNext() {
+    if (_accelState !== 'running') {
+        startAccelCal('full');
+        return;
+    }
+    const btn = document.getElementById('btn-ac-next');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/calibration/accel/position', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({position: _accelPosIdx})
+        });
+        const d = await r.json();
+        if (!(r.ok && d.success)) {
+            setAccelState('failed', d.detail || d.message || 'position rejected');
+        } else if (_accelPosIdx >= 6) {
+            // Final position captured; completion confirmed by statustext parse.
+            setAccelState('running', 'Finalizing... waiting for FC confirmation');
+        } else {
+            _accelPosIdx += 1;
+            setAccelState('running', d.message);
+        }
+    } catch(e) { setAccelState('failed', 'request error'); }
+    btn.disabled = false;
+}
+
+function resetAccelCal() {
+    _accelPosIdx = 0;
+    setAccelState('idle', '—');
+}
+
+
+// --- Shared FCU message parser ---
+let _calLastMsgT = 0;
+function processCalMessages(msgs) {
+    for (const m of msgs) {
+        if (!m || m.t <= _calLastMsgT) continue;
+        const text = (m.text || '').trim();
+
+        // Compass cal parsing
+        if (_compassState === 'running') {
+            if (/compass.*cal.*success/i.test(text) || /calibration success/i.test(text)) {
+                setCompassState('success', text);
+            } else if (/compass.*cal.*fail/i.test(text) || /calibration fail/i.test(text)) {
+                setCompassState('failed', text);
+            } else if (/compass.*cancel/i.test(text)) {
+                setCompassState('cancelled', text);
+            } else if (/mag.*cal|compass.*cal/i.test(text)) {
+                document.getElementById('cc-last-msg').textContent = text;
+            }
+        }
+
+        // Accel cal parsing
+        if (_accelState === 'running') {
+            for (const p of ACCEL_POSITIONS) {
+                if (p.pattern.test(text)) {
+                    _accelPosIdx = p.n;
+                    setAccelState('running', text);
+                    break;
+                }
+            }
+            if (/calibration success/i.test(text) && !/compass/i.test(text)) {
+                setAccelState('done', text);
+            } else if (/calibration fail/i.test(text) && !/compass/i.test(text)) {
+                setAccelState('failed', text);
+            }
+        }
+
+        _calLastMsgT = m.t;
+    }
+}
+
+// Initial render
+document.addEventListener('DOMContentLoaded', () => {
+    try { renderAccelDots(); renderAccelActive(); } catch(e) {}
+    try { initCompassSphere(); } catch(e) {}
+});
+
+
+async function runOneClickCal(type, btnId) {
+    const btn = document.getElementById(btnId);
+    const origLabel = btn.textContent;
+    btn.textContent = 'Running...'; btn.disabled = true;
+    calStatus(`${type} running...`, '#ffaa00');
+    try {
+        const r = await fetch('/api/calibration/' + type, {method:'POST'});
+        const d = await r.json();
+        if (r.ok && d.success) calStatus(`${type}: ${d.message}`, '#00ff88');
+        else calStatus(`${type}: ${d.detail || d.message || 'failed'}`, '#ff4444');
+    } catch(e) {
+        calStatus(`${type}: request error`, '#ff4444');
+    }
+    btn.textContent = origLabel; btn.disabled = false;
+}
+
+function drawThrustCurve(expo) {
+    const c = document.getElementById('thrust-canvas');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    const pad = 28;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid + labels
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 0.5;
+    ctx.fillStyle = '#444';
+    ctx.font = '9px monospace';
+    for (let i = 0; i <= 4; i++) {
+        const x = pad + (w-2*pad) * i/4;
+        const y = h - pad - (h-2*pad) * i/4;
+        ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, h-pad); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w-pad, y); ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.fillText((i*25)+'%', x, h-pad+12);
+        ctx.textAlign = 'right';
+        ctx.fillText((i*25)+'%', pad-4, y+3);
+    }
+
+    // Linear reference
+    ctx.strokeStyle = '#333';
+    ctx.setLineDash([3,3]);
+    ctx.beginPath();
+    ctx.moveTo(pad, h-pad);
+    ctx.lineTo(w-pad, pad);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Thrust curve
+    ctx.strokeStyle = '#00ddff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 100; i++) {
+        const x = i / 100;
+        const y = (1 - expo) * x + expo * x * x;
+        const px = pad + x * (w - 2*pad);
+        const py = (h - pad) - y * (h - 2*pad);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = '#666';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Stick %', w/2, h-2);
+    ctx.save();
+    ctx.translate(9, h/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText('Thrust %', 0, 0);
+    ctx.restore();
+
+    // Expo badge
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('expo ' + expo.toFixed(2), w-pad, pad-6);
+
+    // 50% stick marker
+    const halfThrust = ((1-expo)*0.5 + expo*0.25) * 100;
+    ctx.fillStyle = '#888';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('50% stick = ' + halfThrust.toFixed(0) + '% thrust', pad+4, pad+12);
+}
+
+// --- PID Tuning ---
+let pidDefaults = {};
+const PID_MAIN = ['KP', 'KI', 'KD', 'DESCENT_STEP', 'LAND_BOX_RATIO'];
+const PID_LABELS = {
+    KP: 'Kp (response)', KI: 'Ki (wind)', KD: 'Kd (damping)',
+    DESCENT_STEP: 'Descent speed', LAND_BOX_RATIO: 'Land trigger',
+    I_LIMIT: 'I clamp', EMA_ALPHA: 'Filter (EMA)', CENTER_THRESHOLD: 'Center zone',
+    SEARCH_TIMEOUT: 'Search timeout', MIN_DESCENT_STEP: 'Min descent',
+};
+
+function pidRow(k, v) {
+    pidDefaults[k] = v.default;
+    const label = PID_LABELS[k] || k;
+    return `<div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
+        <label style="color:#aaa; flex:1;" title="${k}">${label}</label>
+        <input id="pid-${k}" type="number" step="0.01" value="${v.value}"
+            style="width:55px; background:#1a1a2e; color:#00ddff; border:1px solid #444; border-radius:3px; padding:2px 4px; font-family:inherit; font-size:11px; text-align:right;">
+        <span style="color:#555; font-size:9px; width:35px; text-align:right; margin-left:3px;">${v.default}</span>
+    </div>`;
+}
+
+async function loadPidConfig() {
+    try {
+        const r = await fetch('/api/land/config');
+        const cfg = await r.json();
+        pidDefaults = {};
+        let mainHtml = '', advHtml = '';
+        for (const [k, v] of Object.entries(cfg)) {
+            if (PID_MAIN.includes(k)) mainHtml += pidRow(k, v);
+            else advHtml += pidRow(k, v);
+        }
+        // Sort main params in defined order
+        const sorted = PID_MAIN.map(k => cfg[k] ? pidRow(k, cfg[k]) : '').join('');
+        document.getElementById('pid-main').innerHTML = sorted;
+        document.getElementById('pid-adv').innerHTML = advHtml;
+    } catch (e) {}
+}
+
+async function savePidConfig() {
+    const inputs = document.querySelectorAll('[id^="pid-"]');
+    const updates = {};
+    inputs.forEach(inp => {
+        if (inp.type !== 'number') return;
+        const key = inp.id.replace('pid-', '');
+        updates[key] = parseFloat(inp.value);
+    });
+    const r = await apiPost('/api/land/config', updates);
+    if (r && r.success) log('PID config saved');
+}
+
+async function resetPidDefaults() {
+    const r = await apiPost('/api/land/config', pidDefaults);
+    if (r && r.success) {
+        log('PID config reset to defaults');
+        loadPidConfig();
+    }
+}
+
+// --- Precision Landing ---
+async function precisionLand() {
+    const r = await apiPost('/api/land/precision');
+    if (r && r.success) {
+        document.getElementById('btn-pland').textContent = 'LANDING...';
+        document.getElementById('btn-pland').className = 'btn btn-disable';
+    }
+}
+
+async function abortLand() {
+    await apiPost('/api/land/abort');
+    document.getElementById('btn-pland').textContent = 'AUTO LAND';
+    document.getElementById('btn-pland').className = 'btn btn-arm';
+}
+
+function startLandingPoll() {
+    setInterval(async () => {
+        try {
+            const r = await fetch('/api/land/status');
+            const d = await r.json();
+            const stateEl = document.getElementById('pl-state');
+            stateEl.textContent = d.state.toUpperCase();
+            stateEl.className = 'pl-' + d.state;
+
+            document.getElementById('pl-qr').textContent = d.qr_detected ? 'DETECTED' : 'none';
+            document.getElementById('pl-qr').style.color = d.qr_detected ? '#00ff88' : '#888';
+
+            if (d.qr_detected) {
+                document.getElementById('pl-ex').textContent = d.qr.ex;
+                document.getElementById('pl-ey').textContent = d.qr.ey;
+                document.getElementById('pl-ratio').textContent = (d.qr.ratio * 100).toFixed(0) + '%';
+            } else {
+                document.getElementById('pl-ex').textContent = '--';
+                document.getElementById('pl-ey').textContent = '--';
+                document.getElementById('pl-ratio').textContent = '--';
+            }
+
+            // Reset button when done
+            if (d.state === 'idle' || d.state === 'complete' || d.state === 'aborted') {
+                document.getElementById('btn-pland').textContent = 'AUTO LAND';
+                document.getElementById('btn-pland').className = 'btn btn-arm';
+            }
+        } catch (e) {}
+    }, 500);
+}
+
+// --- Cameras ---
+// Drives all .camera-wrap elements whose data-cam attribute names a
+// backend camera (landing, tracking). Each wrap auto-retries on error and
+// polls FPS via /api/camera/{name}/status.
+function startCameras() {
+    document.querySelectorAll('.camera-wrap').forEach(wrap => {
+        const name = wrap.dataset.cam;
+        const feed = wrap.querySelector('img');
+        const offline = wrap.querySelector('.camera-offline');
+        const label = wrap.querySelector('.camera-label');
+        const fpsEl = wrap.querySelector('.camera-fps');
+        const baseLabel = label.textContent;
+        const streamUrl = '/api/camera/' + name + '/stream';
+
+        feed.onload = () => {
+            feed.style.display = 'block';
+            offline.style.display = 'none';
+            label.textContent = baseLabel + ' LIVE';
+        };
+        feed.onerror = () => {
+            feed.style.display = 'none';
+            offline.style.display = 'flex';
+            offline.textContent = baseLabel.toLowerCase() + ' cam offline';
+            label.textContent = baseLabel;
+            setTimeout(() => { feed.src = streamUrl + '?' + Date.now(); }, 3000);
+        };
+        feed.src = streamUrl;
+
+        setInterval(async () => {
+            try {
+                const r = await fetch('/api/camera/' + name + '/status');
+                if (!r.ok) { fpsEl.textContent = '-- fps'; return; }
+                const s = await r.json();
+                fpsEl.textContent = (s.fps || 0) + ' fps';
+            } catch (e) { fpsEl.textContent = '-- fps'; }
+        }, 2000);
+    });
+}
+
+// --- Safety & Fence ---
+
+function safetyStatus(id, msg, color) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = color || '#888';
+    if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function _safetyPost(url, body, status_id) {
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        if (d && d.success !== false) {
+            safetyStatus(status_id, d.message || 'Saved', '#00ff88');
+            return true;
+        }
+        safetyStatus(status_id, (d && d.message) || 'Failed', '#ff4444');
+        return false;
+    } catch (e) {
+        safetyStatus(status_id, 'Error', '#ff4444');
+        return false;
+    }
+}
+
+async function loadSafety() {
+    const btn = document.getElementById('btn-safety-load');
+    btn.textContent = '...'; btn.disabled = true;
+    safetyStatus('safety-status', 'Reading FC...', '#ffaa00');
+    try {
+        const [s, f] = await Promise.all([
+            fetch('/api/safety/config').then(r => r.json()),
+            fetch('/api/fence/config').then(r => r.json()),
+        ]);
+        // RC
+        if (s.rc && s.rc.action && s.rc.action !== 'unknown')
+            document.getElementById('rcfs-action').value = s.rc.action;
+        // GCS
+        if (s.gcs && s.gcs.action && s.gcs.action !== 'unknown')
+            document.getElementById('gcsfs-action').value = s.gcs.action;
+        if (s.gcs && s.gcs.timeout_s != null)
+            document.getElementById('gcsfs-timeout').value = Number(s.gcs.timeout_s).toFixed(1);
+        // Battery
+        if (s.battery) {
+            if (s.battery.low_volt  != null) document.getElementById('bfs-low-v').value  = Number(s.battery.low_volt).toFixed(2);
+            if (s.battery.crit_volt != null) document.getElementById('bfs-crit-v').value = Number(s.battery.crit_volt).toFixed(2);
+            if (s.battery.low_action  && s.battery.low_action  !== 'unknown') document.getElementById('bfs-low-act').value  = s.battery.low_action;
+            if (s.battery.crit_action && s.battery.crit_action !== 'unknown') document.getElementById('bfs-crit-act').value = s.battery.crit_action;
+            if (s.battery.timer_s != null) document.getElementById('bfs-timer').value = Math.round(Number(s.battery.timer_s));
+        }
+        // Options
+        if (s.options) {
+            document.getElementById('fsopt-landing').checked  = !!s.options.dont_interrupt_landing;
+            document.getElementById('fsopt-auto-rc').checked  = !!s.options.continue_auto_rc;
+            document.getElementById('fsopt-auto-gcs').checked = !!s.options.continue_auto_gcs;
+        }
+        // Fence
+        document.getElementById('fence-enable').checked     = !!f.enable;
+        document.getElementById('fence-autoenable').checked = !!f.autoenable;
+        if (f.action && f.action !== 'unknown') document.getElementById('fence-action').value = f.action;
+        if (f.margin_m        != null) document.getElementById('fence-margin').value   = f.margin_m;
+        if (f.ceiling_m       != null) document.getElementById('fence-ceil-m').value   = f.ceiling_m;
+        if (f.floor_m         != null) document.getElementById('fence-floor-m').value  = f.floor_m;
+        if (f.circle_radius_m != null) document.getElementById('fence-radius-m').value = f.circle_radius_m;
+        document.getElementById('fence-ceil-on').checked   = !!f.ceiling_enabled;
+        document.getElementById('fence-floor-on').checked  = !!f.floor_enabled;
+        document.getElementById('fence-circle-on').checked = !!f.circle_enabled;
+        document.getElementById('fence-poly-on').checked   = !!f.polygon_enabled;
+        safetyStatus('safety-status', 'Loaded', '#00ff88');
+    } catch (e) {
+        safetyStatus('safety-status', 'Load failed', '#ff4444');
+    }
+    btn.textContent = 'Load'; btn.disabled = false;
+}
+
+async function saveRcFs() {
+    await _safetyPost('/api/safety/rc',
+        { action: document.getElementById('rcfs-action').value }, 'rcfs-status');
+}
+
+async function saveGcsFs() {
+    await _safetyPost('/api/safety/gcs', {
+        action: document.getElementById('gcsfs-action').value,
+        timeout_s: parseFloat(document.getElementById('gcsfs-timeout').value),
+    }, 'gcsfs-status');
+}
+
+async function saveBattFs() {
+    await _safetyPost('/api/safety/battery', {
+        low_volt:    parseFloat(document.getElementById('bfs-low-v').value),
+        crit_volt:   parseFloat(document.getElementById('bfs-crit-v').value),
+        low_action:  document.getElementById('bfs-low-act').value,
+        crit_action: document.getElementById('bfs-crit-act').value,
+        timer_s:     parseFloat(document.getElementById('bfs-timer').value),
+    }, 'battfs-status');
+}
+
+async function saveFsOptions() {
+    await _safetyPost('/api/safety/options', {
+        dont_interrupt_landing: document.getElementById('fsopt-landing').checked,
+        continue_auto_rc:       document.getElementById('fsopt-auto-rc').checked,
+        continue_auto_gcs:      document.getElementById('fsopt-auto-gcs').checked,
+    }, 'fsopt-status');
+}
+
+async function applySafetyDefaults() {
+    if (!confirm('Write default failsafes (RC→RTL, GCS→RTL/5s, Batt 10.5V/10.0V, Don\'t interrupt landing)?\n\nThis will overwrite current settings on the FC.')) return;
+    const btn = document.getElementById('btn-safety-defaults');
+    btn.disabled = true; btn.textContent = 'Writing...';
+    const ok = await _safetyPost('/api/safety/defaults', {}, 'safety-status');
+    btn.textContent = 'Load Safe Defaults (all failsafes)';
+    btn.disabled = false;
+    if (ok) loadSafety();
+}
+
+async function saveFence() {
+    await _safetyPost('/api/fence/config', {
+        enable:          document.getElementById('fence-enable').checked,
+        autoenable:      document.getElementById('fence-autoenable').checked,
+        action:          document.getElementById('fence-action').value,
+        margin_m:        parseFloat(document.getElementById('fence-margin').value),
+        ceiling_enabled: document.getElementById('fence-ceil-on').checked,
+        ceiling_m:       parseFloat(document.getElementById('fence-ceil-m').value),
+        floor_enabled:   document.getElementById('fence-floor-on').checked,
+        floor_m:         parseFloat(document.getElementById('fence-floor-m').value),
+        circle_enabled:  document.getElementById('fence-circle-on').checked,
+        circle_radius_m: parseFloat(document.getElementById('fence-radius-m').value),
+        polygon_enabled: document.getElementById('fence-poly-on').checked,
+    }, 'fence-status');
+}
+
+async function applyFenceDefaults() {
+    if (!confirm('Apply fence defaults (100 m ceiling + 300 m circle, RTL on breach, auto-arm)?')) return;
+    const btn = document.getElementById('btn-fence-defaults');
+    btn.disabled = true;
+    const ok = await _safetyPost('/api/fence/defaults', {}, 'fence-status');
+    btn.disabled = false;
+    if (ok) loadSafety();
+}
+
+function _parsePolygon(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(/[\s,]+/).filter(Boolean);
+        if (parts.length < 2) throw new Error('Line ' + (i+1) + ': need "lat, lon"');
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+        if (!isFinite(lat) || !isFinite(lon)) throw new Error('Line ' + (i+1) + ': not numeric');
+        out.push([lat, lon]);
+    }
+    return out;
+}
+
+async function uploadPolygon() {
+    let points;
+    try { points = _parsePolygon(document.getElementById('fence-polygon').value); }
+    catch (e) { safetyStatus('fence-poly-status', e.message, '#ff4444'); return; }
+    if (points.length < 3) { safetyStatus('fence-poly-status', 'Need at least 3 points', '#ff4444'); return; }
+    const btn = document.getElementById('btn-poly-upload');
+    btn.textContent = 'Uploading...'; btn.disabled = true;
+    await _safetyPost('/api/fence/polygon', {
+        points: points,
+        inclusion: document.getElementById('fence-poly-type').value === 'inclusion',
+    }, 'fence-poly-status');
+    btn.textContent = 'Upload Polygon'; btn.disabled = false;
+}
+
+async function clearPolygon() {
+    if (!confirm('Clear all polygon fence points on the FC?')) return;
+    const btn = document.getElementById('btn-poly-clear');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/fence/polygon', { method: 'DELETE' });
+        const d = await r.json();
+        if (d && d.success !== false) {
+            safetyStatus('fence-poly-status', d.message || 'Cleared', '#00ff88');
+            document.getElementById('fence-polygon').value = '';
+        } else {
+            safetyStatus('fence-poly-status', (d && d.message) || 'Failed', '#ff4444');
+        }
+    } catch (e) {
+        safetyStatus('fence-poly-status', 'Error', '#ff4444');
+    }
+    btn.disabled = false;
+}
+
+// --- VTX broadcast source switcher ---
+// Polls /api/vtx/source every 2s to reflect any out-of-band switches
+// (someone hitting the API directly, or a future auto-switch on lock).
+// Click handler does an optimistic UI update then confirms via the
+// next poll cycle.
+function _vtxUpdateButtons(activeName) {
+    document.querySelectorAll('.vtx-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.src === activeName);
+    });
+}
+
+async function setVtxSource(name) {
+    const buttons = document.querySelectorAll('.vtx-btn');
+    buttons.forEach(b => b.disabled = true);
+    try {
+        const r = await fetch('/api/vtx/source', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name}),
+        });
+        if (r.ok) {
+            _vtxUpdateButtons(name);  // optimistic
+        } else {
+            console.error('setVtxSource failed:', r.status, await r.text());
+        }
+    } catch (e) {
+        console.error('setVtxSource:', e);
+    } finally {
+        buttons.forEach(b => b.disabled = false);
+    }
+}
+
+async function pollVtxSource() {
+    try {
+        const r = await fetch('/api/vtx/source');
+        if (r.ok) {
+            const data = await r.json();
+            _vtxUpdateButtons(data.current);
+        }
+    } catch (e) { /* swallow — will retry next tick */ }
+    setTimeout(pollVtxSource, 2000);
+}
+
 // --- Init ---
 startTelemetry();
+startCameras();
+startLandingPoll();
+loadPidConfig();
+drawThrustCurve(0.65); // default curve until params loaded
+pollVtxSource();        // VTX source switcher live
 </script>
 </body>
 </html>

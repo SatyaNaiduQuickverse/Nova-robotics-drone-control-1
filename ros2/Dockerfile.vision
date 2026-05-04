@@ -1,0 +1,32 @@
+FROM debian:trixie-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1
+
+# HailoRT ships from the Raspberry Pi apt archive (not Debian main), so we
+# add that repo inside the container. We need python3-hailort built for the
+# same system python that Trixie ships (3.13).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    gnupg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# The raspberrypi.com signing key is SHA1-signed, which Trixie's sqv policy
+# rejects after 2026-02-01. We mark the repo [trusted=yes] — this is only used
+# to pull hailort packages, and the build happens on the same host that's
+# already installed (and verified) the same packages from the same repo.
+RUN echo "deb [trusted=yes] http://archive.raspberrypi.com/debian trixie main" \
+        > /etc/apt/sources.list.d/raspi.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-numpy \
+    python3-opencv \
+    hailort \
+    python3-hailort \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+CMD ["python3", "detector.py"]

@@ -1,20 +1,69 @@
 services:
   drone:
     image: novaros/drone-control:humble
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: drone-control
     privileged: true
     network_mode: host
     volumes:
       - /dev:/dev
       - ./src:/ros2_ws/src:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
     environment:
       - ROS_DOMAIN_ID=0
-    command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      ros2 run mavros mavros_node --ros-args -p fcu_url:=serial:///dev/ttyACM0:115200 -p system_id:=255 &
-      sleep 5 &&
-      python3 /ros2_ws/src/drone_control/drone_control/api_gateway.py"
+      # Dev mode: skip MAVROS / FC requirement so we can work on camera +
+      # VTX path without the Pixhawk plugged in. Set back to "1" (or
+      # remove this line) for production / actual flight.
+      - MAVROS_REQUIRED=0
+    command: ["bash", "/entrypoint.sh"]
+    stop_grace_period: 10s
     restart: unless-stopped
+
+  # Pi Camera Module 3 (IMX708) CSI streamer.
+  # Runs rpicam-vid inside a Bookworm sidecar (rpicam-apps isn't packaged for
+  # the Jammy base image that drone-control uses). Serves MJPEG on tcp://127.0.0.1:8090;
+  # drone-control's camera.py consumes it as the "landing" camera.
+  pi-cam:
+    image: novaros/pi-cam:bookworm
+    build:
+      context: .
+      dockerfile: Dockerfile.picam
+    container_name: pi-cam
+    privileged: true
+    network_mode: host
+    volumes:
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+    restart: unless-stopped
+
+  vision:
+    image: novaros/vision-detect:hailo
+    build:
+      context: .
+      dockerfile: Dockerfile.vision
+    container_name: vision-detect
+    network_mode: host
+    devices:
+      # Hailo-8 PCIe AI HAT+. Kernel driver `hailo_pci` must be loaded on host.
+      - /dev/hailo0:/dev/hailo0
+    volumes:
+      # Mount the source so we can iterate on detector.py without rebuilding
+      - ./src/drone_control/drone_control/detector.py:/app/detector.py:ro
+      # HEF model comes from the host's hailo-models package — read-only.
+      - /usr/share/hailo-models/yolov8s_h8.hef:/models/yolov8s_h8.hef:ro
+    environment:
+      - VISION_PORT=8081
+      - VISION_SOURCE=drone
+      - VISION_DRONE_URL=http://127.0.0.1:8080/camera/tracking/snapshot
+      - VISION_HEF=/models/yolov8s_h8.hef
+    # Inference runs on the Hailo NPU, not the CPU. One core is plenty for
+    # frame fetch + pre/post processing + the HTTP server.
+    cpus: 1.5
+    restart: unless-stopped
+    depends_on:
+      - drone
 
   web:
     image: python:3.11-slim
@@ -29,3 +78,4 @@ services:
     restart: unless-stopped
     depends_on:
       - drone
+      - vision

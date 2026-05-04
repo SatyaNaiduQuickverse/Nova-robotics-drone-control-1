@@ -1,0 +1,36 @@
+# Standalone compose for the ELRS telemetry bridge.
+# Lives in modules/elrs_telemetry/ — completely separate from
+# ros2/docker-compose.yml so it can be brought up/down without
+# touching the existing drone, vision, or web containers.
+#
+# Run from this directory:
+#   docker compose build
+#   docker compose up -d
+#   docker compose logs -f
+
+services:
+  elrs:
+    build: .
+    image: novaros/elrs-telemetry:latest
+    container_name: elrs-telemetry
+    # network_mode: host so port 5003 is reachable on the Pi's LAN/Tailscale IP
+    # without any port-mapping overhead. Matches the pattern used by the other
+    # NovaROS containers.
+    network_mode: host
+    # privileged + /dev mount mirrors the drone-control container's pattern.
+    # Lets the service see the ESP32 by its stable by-id symlink and survive
+    # USB hot-plug (the by-id link gets re-created by udev on replug).
+    privileged: true
+    volumes:
+      - /dev:/dev
+    environment:
+      # Stable by-id path — will not be stolen by the CubeOrange when it's
+      # plugged back in (different USB serial).
+      - ELRS_SERIAL_DEVICE=/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_FC:01:2C:E8:BC:64-if00
+      - ELRS_PORT=5003
+      # Token-bucket rate limit for telemetry POSTs. ELRS downlink physically
+      # caps around 3 Hz; 5 Hz here gives a small burst tolerance.
+      - ELRS_TX_RATE_HZ=5
+      # Set ELRS_API_TOKEN=... to require Authorization: Bearer on POSTs.
+      # Empty (default) leaves POSTs open — fine on a private LAN.
+    restart: unless-stopped

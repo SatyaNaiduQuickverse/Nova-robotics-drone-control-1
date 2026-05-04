@@ -1,0 +1,40 @@
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# rpicam-apps ships from the Raspberry Pi apt archive. Same [trusted=yes]
+# workaround as Dockerfile.vision — the raspberrypi.com archive key is
+# SHA1-signed and Debian's sqv policy rejects SHA1 after 2026-02-01.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN echo "deb [trusted=yes] http://archive.raspberrypi.com/debian bookworm main" \
+        > /etc/apt/sources.list.d/raspi.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        rpicam-apps-lite \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pi Cam Module 3 (IMX708) HD-binned mode: 1536x864 @ 120fps.
+# --listen starts a TCP server; drone-control connects as a client and
+# pulls MJPEG frames. --nopreview skips Qt init (no display in container).
+# Latency knobs:
+#   --flush            write each frame the instant encode finishes
+#   --denoise off      skip ISP denoise stage — shaves a few ms per frame
+# Note: 120 fps is kept not as a goal in itself but because 1/120 = 8.3 ms
+# is the shortest inter-frame window the sensor supports. Dropping to
+# 60 fps would add ~8 ms of inherent latency for zero win elsewhere.
+# --buffer-count was left at default (4) because 2 starved the ISP.
+CMD ["rpicam-vid", \
+     "--camera", "0", \
+     "--codec", "mjpeg", \
+     "-t", "0", \
+     "--width", "1536", \
+     "--height", "864", \
+     "--framerate", "120", \
+     "--nopreview", \
+     "--flush", \
+     "--denoise", "off", \
+     "--listen", \
+     "-o", "tcp://0.0.0.0:8090"]

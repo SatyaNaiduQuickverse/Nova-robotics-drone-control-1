@@ -1,0 +1,51 @@
+# Standalone compose for drone_bridge.
+# Lives in modules/drone_bridge/ — completely separate from
+# ros2/docker-compose.yml so it can be brought up/down without
+# touching the existing drone, vision, web, or elrs containers.
+#
+# Bring up:
+#   cd modules/drone_bridge
+#   docker compose build
+#   docker compose up -d
+#   docker compose logs -f
+
+services:
+  drone_bridge:
+    build: .
+    image: novaros/drone-bridge:latest
+    container_name: drone-bridge
+
+    # Host network so we can reach drone-control on 127.0.0.1:8080
+    # and elrs-telemetry on 127.0.0.1:5003 with no NAT, AND so the
+    # debug HTTP at 5004 is reachable on the Pi's LAN/Tailscale IP
+    # without port-mapping overhead.
+    network_mode: host
+
+    # privileged + DBus mount is what lets bless drive the BlueZ
+    # peripheral on the host. We also mount /var/run/dbus so the
+    # container's bless can talk to the system bus.
+    privileged: true
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      # Some BlueZ versions also need access to /sys/class/bluetooth
+      # for adapter discovery; harmless to mount even if unused.
+      - /sys/class/bluetooth:/sys/class/bluetooth
+
+    environment:
+      DRONE_API:    http://127.0.0.1:8080      # drone-control FastAPI
+      ELRS_API:     http://127.0.0.1:5003      # elrs-telemetry HTTP
+      ELRS_WS:      ws://127.0.0.1:5003/ws/channels
+      DRONE_POLL_HZ: "10"                       # /telemetry sample rate
+      ELRS_POLL_HZ:  "5"                        # /link sample rate
+      DEBUG_PORT:    "5004"
+      BLE_ADV_NAME:  "novadrone-pi"
+      BLE_MTU:       "247"
+      # Override the 6-position CH7 mode table here if your radio has a
+      # different convention. Comma-separated, exactly 6 entries.
+      # DRONE_CH7_MODES: "STABILIZE,ALT_HOLD,LOITER,POSHOLD,RTL,LAND"
+      # Either subsystem can be disabled independently for testing.
+      ENABLE_BLE:        "1"
+      ENABLE_TRANSLATOR: "1"
+      LOG_LEVEL:         INFO
+
+    restart: unless-stopped

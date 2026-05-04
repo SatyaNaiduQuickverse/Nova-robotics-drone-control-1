@@ -5,6 +5,8 @@ Subscribes to all relevant topics, stores latest values.
 """
 
 import threading
+import time
+from collections import deque
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
@@ -102,6 +104,7 @@ class Telemetry:
         self.relative_alt = 0.0
         self.heading = 0.0
         self.status_text = ""
+        self.messages = deque(maxlen=50)
 
     def to_dict(self) -> dict:
         return {
@@ -121,7 +124,8 @@ class Telemetry:
             "home": self.home,
             "relative_alt": self.relative_alt,
             "heading": self.heading,
-            "status_text": self.status_text
+            "status_text": self.status_text,
+            "messages": list(self.messages)
         }
 
 
@@ -175,10 +179,21 @@ class TelemetryNode(Node):
         self.get_logger().info("Telemetry node started")
 
     def _state_cb(self, msg: State):
+        was_connected = bool(self.telem.state.get("connected"))
         self.telem.state["connected"] = msg.connected
         self.telem.state["armed"] = msg.armed
         self.telem.state["mode"] = msg.mode
         self.telem.state["system_status"] = msg.system_status
+        # Fire reconnect callback on edge (disconnected → connected). MAVROS
+        # replaces its service endpoints on FCU reconnect, so downstream
+        # code may need to rebuild cached service clients.
+        if msg.connected and not was_connected:
+            cb = globals().get("_reconnect_cb")
+            if cb is not None:
+                try:
+                    cb()
+                except Exception as e:
+                    self.get_logger().error(f"reconnect callback failed: {e}")
 
     def _ext_state_cb(self, msg: ExtendedState):
         self.telem.extended_state["landed_state"] = msg.landed_state
@@ -189,8 +204,16 @@ class TelemetryNode(Node):
         self.telem.battery["current"] = msg.current
         self.telem.battery["percentage"] = msg.percentage
 
+    _SEV_NAMES = ["EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"]
+
     def _status_cb(self, msg: StatusText):
         self.telem.status_text = msg.text
+        sev = self._SEV_NAMES[msg.severity] if msg.severity < len(self._SEV_NAMES) else str(msg.severity)
+        self.telem.messages.append({
+            "t": round(time.time(), 2),
+            "sev": sev,
+            "text": msg.text,
+        })
 
     def _gps_cb(self, msg: NavSatFix):
         self.telem.gps["fix_type"] = msg.status.status
@@ -285,6 +308,17 @@ def _quat_to_euler_yaw(x, y, z, w) -> float:
 _telemetry = Telemetry()
 _node: TelemetryNode = None
 _running = False
+_reconnect_cb = None  # set via set_reconnect_callback()
+
+
+def set_reconnect_callback(cb) -> None:
+    """
+    Register a callable fired on FCU reconnect (state.connected edge False→True).
+    Used by api_gateway to rebuild MAVROS service clients whose cached handles
+    become stale whenever the FC reboots.
+    """
+    global _reconnect_cb
+    _reconnect_cb = cb
 
 
 def start():

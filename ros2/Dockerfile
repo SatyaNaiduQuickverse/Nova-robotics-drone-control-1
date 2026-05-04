@@ -8,11 +8,14 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     python3-pip \
     geographiclib-tools \
+    ffmpeg \
+    v4l-utils \
+    libzbar0 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh || true
 
-RUN pip3 install --no-cache-dir fastapi uvicorn
+RUN pip3 install --no-cache-dir fastapi uvicorn pyzbar pillow
 
 WORKDIR /ros2_ws
 
