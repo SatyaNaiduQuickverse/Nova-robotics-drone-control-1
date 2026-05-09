@@ -130,6 +130,13 @@ SOURCE_NAME_BY_CODE = {
 # rate the actual fire-time may be one frame (~20 ms) late.
 ESCAPE_TIMEOUT_MS = 200.0
 
+# After accepting a sub-opcode, the phone-side hold may extend past
+# acceptance — multiple CH8 frames continue to carry the same reserved
+# code value. Suppress reserved-code rejections for matches inside this
+# grace window so the counter signature reflects intent (one sub-op
+# event), not wire residue.
+SUBOP_TRAILING_GRACE_MS = 250.0
+
 
 # --- CH8 OPTION D: 16-code flat table (drift-robust replacement) --------
 #
@@ -513,6 +520,8 @@ class VisionLockState:
     pre_escape_ops_code: int  = OPS_CODE_IDLE   # snapshot at ESCAPE entry so the
                                                 # post-sub-opcode resync doesn't
                                                 # spuriously re-fire transitions
+    last_subop_code:        int   = -1          # last sub-opcode consumed; -1 = none
+    last_subop_consumed_mono: float = 0.0       # monotonic time of consumption
 
     # LEGACY (Round 2 bit-packed CH8 layered field).
     # Stability gate for button codes 1..4 — kept around but no longer wired
@@ -734,17 +743,34 @@ class VisionLockHandler:
                 vl.events_sub_opcode += 1
                 log.info("CH8 ESCAPE sub-opcode received: %d (no handlers; reserved)",
                          code)
+                vl.escape_state = "NORMAL"
+                vl.prev_ops_code = vl.pre_escape_ops_code
+                # Record consumption so the trailing portion of the
+                # phone-side hold doesn't fire spurious reserved warnings.
+                vl.last_subop_code = code
+                vl.last_subop_consumed_mono = now_mono
+            elif code == OPS_CODE_ESCAPE:
+                # Continued ESCAPE — Tx slot contention absorber.
+                # Why: the Ranger Micro Tx in 100 Hz Mixed mode runs its own
+                # RF-slot scheduler with a single channel-source buffer.
+                # If the phone-side writes ESCAPE / sub-op / VISION_BOX into
+                # the Tx faster than one slot period (~10 ms), the Tx may
+                # emit ESCAPE on multiple consecutive RF frames before the
+                # sub-op write reaches the next slot. Treating repeated
+                # ESCAPE as "still waiting" absorbs this without weakening
+                # the safety guard: reserved codes (10..15) still require an
+                # OPEN window for sub-op acceptance. Refresh the timer so
+                # the 200 ms budget restarts from now.
+                vl.escape_started_mono = now_mono
             else:
-                # Unexpected follow-up code (operator released ESCAPE before
-                # follow-up landed, or wire fault). Don't dispatch; treat
-                # as abandoned ESCAPE.
+                # Unexpected follow-up: phone returned to VISION_BOX or
+                # another non-reserved code before sub-op landed. Wire-level
+                # fault or operator released ESCAPE early. Abandon.
                 vl.rejections_escape_timeout += 1
                 log.warning("CH8 ESCAPE follow-up frame was code %d, not a "
                             "sub-opcode (10..15) — abandoning", code)
-            vl.escape_state = "NORMAL"
-            # Resync to pre-ESCAPE state — same reasoning as the timeout
-            # branch. The very next normal frame will compare cleanly.
-            vl.prev_ops_code = vl.pre_escape_ops_code
+                vl.escape_state = "NORMAL"
+                vl.prev_ops_code = vl.pre_escape_ops_code
             return
 
         # --- 4. NORMAL state: dispatch on code transitions -----------
@@ -811,9 +837,17 @@ class VisionLockHandler:
             # Codes 10..15 outside an ESCAPE window. Phone-side never sends
             # these except as sub-opcodes — receiving one here means either
             # a future feature without coordinated update or a wire fault.
-            vl.rejections_reserved += 1
-            log.warning("CH8 reserved code %d outside ESCAPE window — ignored",
-                        code)
+            # Exception: if we JUST consumed this exact code as a sub-opcode,
+            # the wire is still carrying the trailing portion of the same
+            # phone-side hold. Suppress to avoid spurious counter increments.
+            if (code == vl.last_subop_code
+                and (now_mono - vl.last_subop_consumed_mono) * 1000.0
+                    < SUBOP_TRAILING_GRACE_MS):
+                pass  # idempotent: state advances via prev_ops_code below
+            else:
+                vl.rejections_reserved += 1
+                log.warning("CH8 reserved code %d outside ESCAPE window — ignored",
+                            code)
 
         vl.prev_ops_code = code
 

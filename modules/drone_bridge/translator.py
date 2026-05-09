@@ -307,8 +307,15 @@ class EdgeEventHandler:
                                                label="disarm (CH5↓)"))
         state.last_ch5_armed = ch5_armed
 
-        # CH6: force-disarm (rising edge only). >=1500 forces disarm.
-        ch6_forced = us[5] >= 1500
+        # CH6: force-disarm (rising edge only). >=1700 µs forces disarm.
+        # Threshold sits above the documented ELRS Mixed-mode drift band:
+        # CRSF MID 992 → us nominal 1500, but Mixed mode can drift to 1507
+        # — that would always exceed a naive 1500 threshold, leaving
+        # ch6_forced perpetually True at idle and no rising edge ever
+        # firing. 1700 leaves a comfortable ~190 µs guard above the
+        # drifted-MID band while keeping the active-pulse value (CRSF
+        # 1800 → us ≈2012) well clear. See Phase 5 batch-1 forensics.
+        ch6_forced = us[5] >= 1700
         if state.last_ch6_forced is not None and ch6_forced and not state.last_ch6_forced:
             state.events_disarm += 1
             asyncio.create_task(self._post("/disarm/force",
