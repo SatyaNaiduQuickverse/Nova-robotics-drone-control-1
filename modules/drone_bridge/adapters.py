@@ -5,11 +5,14 @@ not modify it). When its actual API shape differs from what
 PROMPT.md §3 documents, the translation lives here — never in
 drone-control.
 
-Three real divergences caught by the smoke test:
+Real divergences caught by the smoke test:
 
-  1. PATH:  /control/arm    → /arm
-            /control/disarm → /disarm
-            /control/mode   → /mode
+  1. PATH:  /control/mode   → /mode
+            (Note: /control/arm and /control/disarm are now NATIVE in
+             drone-control api_gateway and do real work — vtx setup +
+             FC arming. They are NOT path-rewritten anymore. Only
+             /control/mode still rewrites; if /mode ever gets promoted
+             to /control/mode in api_gateway, this can go too.)
   2. BODY:  /calibration/motor_test  mode "STANDARD" → "single"
   3. BODY:  /fence/polygon  {"points":[{"lat":x,"lon":y}, ...]}
                           → {"points":[[x, y], ...]}
@@ -33,11 +36,11 @@ log = logging.getLogger("drone_bridge.adapters")
 # --- Path rewrites (phone-side path → drone-control path) ----------------
 
 PATH_REWRITES: dict[tuple[str, str], str] = {
-    ("POST", "/control/arm"):    "/arm",
-    ("POST", "/control/disarm"): "/disarm",
+    # /control/mode is still phone-side-named differently from drone-control's /mode.
+    # No path rewrite for /control/arm or /control/disarm — those exist natively
+    # in drone-control now (with virtual_tx orchestration). /control/command also
+    # exists natively at the same path with the right shape (throttle/roll/pitch/yaw).
     ("POST", "/control/mode"):   "/mode",
-    # /control/command stays the same — it exists at /control/command in
-    # drone-control with the right shape (throttle/roll/pitch/yaw).
 }
 
 # --- Per-endpoint timeouts (seconds) -------------------------------------

@@ -42,7 +42,7 @@ from typing import Optional
 import httpx
 import websockets
 
-from . import vision_lock
+from . import services, vision_lock
 
 
 log = logging.getLogger("drone_bridge.translator")
@@ -290,15 +290,20 @@ class EdgeEventHandler:
         us = state.channels_us
 
         # CH5: arm switch (binary). >=1500 means "armed".
+        # POSTs to /control/arm (NOT /arm) so drone-control sets up the
+        # virtual_tx throttle source as part of arming. Without that, the
+        # FC arms but motors stay at PWM 1000 because no throttle channel
+        # is being published. See drone-control api_gateway.py:control_arm
+        # for the orchestration. Symmetric /control/disarm on the down-edge.
         ch5_armed = us[4] >= 1500
         if state.last_ch5_armed is not None and ch5_armed != state.last_ch5_armed:
             if ch5_armed:
                 state.events_arm += 1
-                asyncio.create_task(self._post("/arm",
+                asyncio.create_task(self._post("/control/arm",
                                                label="arm (CH5↑)"))
             else:
                 state.events_disarm += 1
-                asyncio.create_task(self._post("/disarm",
+                asyncio.create_task(self._post("/control/disarm",
                                                label="disarm (CH5↓)"))
         state.last_ch5_armed = ch5_armed
 
@@ -345,10 +350,34 @@ class EdgeEventHandler:
 async def run(drone_api: str, ws_url: str) -> None:
     """Start the translator. Runs forever; reconnects WS on errors;
     keeps the 50 Hz sender alive even when WS is down (sender will
-    just hit link-loss and not send)."""
+    just hit link-loss and not send).
+
+    Reports health under services.registry name 'translator'. The
+    translator is healthy whenever the WS reader has received a frame
+    in the last LINK_LOSS_S window — same definition the link-loss
+    guard uses internally."""
     state = TranslatorState()
+    health = services.registry.register("translator")
+    health.extra.update({"drone_api": drone_api, "ws_url": ws_url})
     log.info("translator starting (mode map: %d entries)", len(PHONE_MODE_MAP))
     log.info("stick mapping: throttle=ch[0], roll=ch[1], pitch=ch[2], yaw=ch[3]")
+
+    async def _health_watcher():
+        """Background coroutine: reflects channel-frame freshness into
+        the registry. Decoupled from the WS reader so the hot path
+        stays I/O-free."""
+        while True:
+            await asyncio.sleep(1.0)
+            now = time.monotonic()
+            health.extra["frames_in"] = state.frames_in
+            health.extra["commands_sent"] = state.commands_sent
+            health.extra["commands_skipped_link_loss"] = state.commands_skipped_link_loss
+            if state.last_rc_ts is None:
+                health.report_error("WS not yet receiving frames")
+            elif (now - state.last_rc_ts) > LINK_LOSS_S:
+                health.report_error(f"WS stale ({now - state.last_rc_ts:.1f}s since last frame)")
+            else:
+                health.report_recovery()
 
     async with httpx.AsyncClient(base_url=drone_api, timeout=2.0) as client:
         edge   = EdgeEventHandler(client, PHONE_MODE_MAP)
@@ -363,4 +392,5 @@ async def run(drone_api: str, ws_url: str) -> None:
         await asyncio.gather(
             _ws_reader_loop(ws_url, state, _fanout),
             _control_sender_loop(client, state),
+            _health_watcher(),
         )

@@ -31,15 +31,32 @@ import compass_cal
 import vtx_broadcast
 
 # Mode mapping: API name -> (ArduPilot, PX4)
+#
+# This dict is the canonical contract for `POST /mode`: any name not
+# present here is rejected at the api_gateway layer with "Invalid mode"
+# before the request ever reaches MAVROS. The phone CH7 rotary, the
+# Android internet-control mode picker, and the web UI all share this
+# list — keep them aligned.
+#
+# PX4 mappings are best-effort:
+#   - SMART_RTL has no PX4 equivalent → degrades to AUTO.RTL (regular RTL)
+#   - AUTOTUNE has no PX4 equivalent → kept as "AUTOTUNE"; FC will reject
+#     if running PX4 (acceptable — this build is ArduCopter-only)
+#   - POSHOLD reuses POSCTL (same mapping as LOITER on PX4 since PX4
+#     doesn't separate "GPS hold" from "GPS hold with stick override")
 MODES = {
     "stabilize":  ("STABILIZE", "STABILIZED"),
-    "loiter":     ("LOITER", "POSCTL"),
-    "alt_hold":   ("ALT_HOLD", "ALTCTL"),
-    "land":       ("LAND", "AUTO.LAND"),
-    "rtl":        ("RTL", "AUTO.RTL"),
-    "guided":     ("GUIDED", "OFFBOARD"),
-    "auto":       ("AUTO", "AUTO.MISSION"),
-    "brake":      ("BRAKE", "AUTO.LOITER"),
+    "alt_hold":   ("ALT_HOLD",  "ALTCTL"),
+    "loiter":     ("LOITER",    "POSCTL"),
+    "auto":       ("AUTO",      "AUTO.MISSION"),
+    "guided":     ("GUIDED",    "OFFBOARD"),
+    "brake":      ("BRAKE",     "AUTO.LOITER"),
+    "rtl":        ("RTL",       "AUTO.RTL"),
+    "land":       ("LAND",      "AUTO.LAND"),
+    "poshold":    ("POSHOLD",   "POSCTL"),
+    "acro":       ("ACRO",      "ACRO"),
+    "smart_rtl":  ("SMART_RTL", "AUTO.RTL"),
+    "autotune":   ("AUTOTUNE",  "AUTOTUNE"),
 }
 
 TELEM_CATEGORIES = [
@@ -493,6 +510,156 @@ def clear_mission_endpoint():
 
 # --- Control Endpoints (Virtual TX) ---
 
+# Manual flight modes that read RC throttle as a primary input. In these
+# modes ArduCopter requires a continuously-published throttle channel —
+# without one, motors stay clamped at PWM 1000 even when armed (the
+# `/control/arm` endpoint exists precisely to set up this throttle source
+# automatically). Other modes (AUTO/GUIDED/RTL/SMART_RTL/LAND/AUTOTUNE)
+# use FC-internal setpoints and ignore RC override, so virtual_tx is
+# harmless but unnecessary in them.
+#
+# POSHOLD: like LOITER but with manual stick override — needs RC.
+# ACRO: full rate control, throttle stick directly drives thrust — needs RC.
+MANUAL_FLIGHT_MODES = {"STABILIZE", "ALT_HOLD", "LOITER", "POSHOLD", "ACRO"}
+
+
+def _ensure_throttle_source_for_arm() -> tuple[bool, str]:
+    """Pre-arm setup for manual flight: enable virtual_tx and prime the FC's
+    throttle reading with a neutral hold command.
+
+    Skipped (returns ok=True) when:
+      - Current mode is autonomous (FC ignores RC override anyway)
+      - A real RC source is already feeding the FC (`rc_in.channels`
+        non-empty AND virtual_tx not enabled — means a physical radio is
+        providing the throttle channel; we must NOT override it, the
+        operator is in charge)
+
+    Returns (ok, message). On failure, /control/arm should NOT proceed
+    to the FC arming service — better to fail loudly than half-arm.
+
+    Why this exists: ArduCopter's MOT_SPIN_ARM (motor idle PWM when armed)
+    only applies once the FC has a throttle channel reading. With no
+    physical TX and no virtual_tx publishing, the FC has no throttle
+    source and gates motor output to PWM_MIN regardless of arm state.
+    Symptom: /arm succeeds, armed:true, but motors silent.
+    """
+    telem = telemetry.get()
+    mode = telem["state"]["mode"]
+    if mode not in MANUAL_FLIGHT_MODES:
+        return True, f"mode={mode} is autonomous; vtx not needed"
+
+    vtx_status = virtual_tx.get_status()
+    vtx_already_enabled = bool(vtx_status.get("enabled", False))
+
+    # Detect a real (non-vtx) RC source by checking if the FC reports
+    # RC input channels while OUR virtual_tx is NOT enabled. If both
+    # are present, it's our own override echoing back — not a real radio.
+    real_rc_present = (
+        bool(telem["rc_in"]["channels"]) and not vtx_already_enabled
+    )
+    if real_rc_present:
+        return True, "real RC source present; not overriding"
+
+    ok, msg = virtual_tx.enable()
+    if not ok and "already" not in msg.lower():
+        return False, f"virtual_tx enable failed: {msg}"
+
+    # Prime the FC throttle reading with a neutral hold. duration=2s gives
+    # the operator a safe window to start sending real stick commands
+    # before failsafe-centering kicks in. Throttle 0.0 maps to throttle_pwm_idle
+    # (1100 by default) — exactly the "throttle stick at idle" condition
+    # ArduCopter wants to see before MOT_SPIN_ARM kicks in.
+    ok, msg = virtual_tx.send_command(
+        timestamp=time.time(),
+        throttle=0.0, roll=0.0, pitch=0.0, yaw=0.0,
+        duration=2.0,
+    )
+    if not ok:
+        return False, f"virtual_tx prime failed: {msg}"
+
+    # One publish tick at 50 Hz is 20 ms; 50 ms gives ~2-3 ticks of margin
+    # so the FC has reliably received an RC override frame before we ask
+    # it to arm. Below 20 ms is racy.
+    time.sleep(0.05)
+    return True, f"vtx primed (mode={mode})"
+
+
+@app.post("/control/arm", response_model=ArmResponse)
+def control_arm():
+    """Arm for manual flight (canonical client-facing arming endpoint).
+
+    Sets up the virtual_tx throttle source if needed, then arms the FC.
+    Use this from any client that wants to fly manually:
+      * Web UI ARM button
+      * Android app (HTTP and BLE/ELRS paths both)
+      * Any future controller
+
+    Behavior by current flight mode:
+      STABILIZE / ALT_HOLD / LOITER (manual modes):
+        - If virtual_tx already enabled OR a real RC is feeding the FC:
+          just arm (don't trample existing input source)
+        - Otherwise: enable virtual_tx, send a neutral throttle hold,
+          then arm — motors will idle at MOT_SPIN_ARM
+      AUTO / GUIDED / RTL / LAND / AUTOTUNE (autonomous modes):
+        - Just arm (these modes use FC-internal setpoints and ignore
+          RC override)
+
+    For raw FC arming WITHOUT virtual_tx setup, use POST /arm directly.
+    That is the right choice only when you have a real RC source already
+    feeding the FC and explicitly want the bare arming command.
+
+    Failure modes:
+      503 — FCU not connected, or virtual_tx setup failed
+      400 — (no body — request validation N/A)
+      200 with success=false — FC rejected the arming command
+    """
+    telem = telemetry.get()
+    if not telem["state"]["connected"]:
+        return ArmResponse(success=False, message="Not connected to FCU")
+
+    if telem["state"]["armed"]:
+        return ArmResponse(success=True, message="Already armed")
+
+    ok, prep_msg = _ensure_throttle_source_for_arm()
+    if not ok:
+        raise HTTPException(status_code=503, detail=prep_msg)
+
+    with _svc_lock:
+        success, arm_msg = _call_arming(True)
+
+    # Surface the prep step in the message so operators can see in logs
+    # whether vtx was set up by us or pre-existing.
+    if success:
+        return ArmResponse(success=True, message=f"{arm_msg} ({prep_msg})")
+    return ArmResponse(success=False, message=arm_msg)
+
+
+@app.post("/control/disarm", response_model=ArmResponse)
+def control_disarm():
+    """Disarm after manual flight (canonical client-facing disarm endpoint).
+
+    Calls the FC arming service to disarm. Does NOT disable virtual_tx —
+    the operator may rearm without re-enabling, and tearing down the
+    publish thread mid-session has caused arm-then-disarm cascades in
+    the past (see virtual_tx.py:Bug 1).
+
+    For full virtual_tx teardown, use POST /control/disable explicitly.
+    For emergency disarm with motors spinning, use POST /disarm/force —
+    the FC accepts that idempotently and bypasses the normal disarm
+    rejection that fires when motors are still under load.
+    """
+    telem = telemetry.get()
+    if not telem["state"]["connected"]:
+        return ArmResponse(success=False, message="Not connected to FCU")
+
+    if not telem["state"]["armed"]:
+        return ArmResponse(success=True, message="Already disarmed")
+
+    with _svc_lock:
+        success, message = _call_arming(False)
+    return ArmResponse(success=success, message=message)
+
+
 @app.post("/control/enable", response_model=ControlResponse)
 def enable_control():
     """Enable virtual transmitter control mode."""
@@ -779,7 +946,17 @@ def _vtx_fetch_vision() -> Optional[bytes]:
 
 
 def _vtx_fetch_ground() -> Optional[bytes]:
-    """Source: ground-side feed if configured, else offline indicator."""
+    """Source: 'ground' camera if registered + producing frames; else
+    optional remote ground feed at $VTX_GROUND_URL; else the OFFLINE
+    static indicator. Three-tier fallback so the source name stays
+    meaningful regardless of which one is wired up.
+
+    Priority order is local-camera-first because that's the lowest-latency
+    and cheapest path — no HTTP round-trip when a Jieli (or similar) is
+    plugged in directly to the drone."""
+    frame = camera.get_frame("ground")
+    if frame:
+        return frame
     if _VTX_GROUND_URL:
         jpg = _vtx_fetch_url(_VTX_GROUND_URL)
         if jpg:
@@ -841,18 +1018,24 @@ def vtx_snapshot():
     return Response(content=frame, media_type="image/jpeg")
 
 
-async def _vtx_mjpeg_generator():
-    """MJPEG stream of the active source. Same 15-fps cap as the per-camera
-    streams — browsers can't backpressure MJPEG, and uncapped output causes
-    multi-second buffer-bloat in the consumer's TCP queue. Capture and
-    actual transmission rates upstream are unaffected — only this stream
-    view is throttled."""
+async def _broadcast_mjpeg_generator(router: vtx_broadcast.BroadcastRouter):
+    """Generic MJPEG generator over any BroadcastRouter instance.
+
+    Used by /vtx/stream (analog VTX channel) and /inet/stream (internet
+    channel) — both feed the same kind of MJPEG over HTTP, just from
+    independent routers with independent active sources.
+
+    Same 15-fps cap as the per-camera streams — browsers can't backpressure
+    MJPEG, and uncapped output causes multi-second buffer-bloat in the
+    consumer's TCP queue. Capture and actual transmission rates upstream
+    are unaffected — only this stream view is throttled.
+    """
     STREAM_MAX_FPS = 15
     MIN_INTERVAL_S = 1.0 / STREAM_MAX_FPS
     last_yield_mono = 0.0
     last_frame_id = id(None)
     while True:
-        frame = vtx_broadcast.router.get_frame()
+        frame = router.get_frame()
         if frame is not None:
             now = time.monotonic()
             # id(frame) cheap dedup — bytes object identity flips when a
@@ -870,11 +1053,131 @@ async def _vtx_mjpeg_generator():
 
 @app.get("/vtx/stream")
 async def vtx_stream():
-    """MJPEG stream of the active VTX source — for dashboard preview."""
+    """MJPEG stream of the active VTX-channel source — for dashboard
+    preview of what's being sent out the analog VTX."""
     return StreamingResponse(
-        _vtx_mjpeg_generator(),
+        _broadcast_mjpeg_generator(vtx_broadcast.router),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+# --- Internet broadcast channel ----------------------------------------
+#
+# Independent of the analog VTX channel above. Same source registry
+# (front / vision / ground / black), separate active-source selection.
+# This lets the operator send a different feed to the Android app over
+# internet than what's going to the analog VTX simultaneously — e.g.,
+# pilot flies via raw `front` on analog while observer watches `vision`
+# on Android.
+#
+# Architectural rule: any new consumer that needs its own switchable
+# feed gets its own BroadcastRouter instance + four endpoints. Do NOT
+# multiplex more consumers onto a single channel — different consumers
+# fighting over `set_source()` is exactly the contention this design
+# avoids.
+
+inet_router = vtx_broadcast.BroadcastRouter(default_source="vision")
+inet_router.register("front",  _vtx_fetch_front)
+inet_router.register("vision", _vtx_fetch_vision)
+inet_router.register("ground", _vtx_fetch_ground)
+inet_router.register("black",  _vtx_fetch_black)
+
+
+@app.get("/inet/source")
+def inet_get_source():
+    """Return the internet-channel's current active source + list of all
+    registered sources. Independent of /vtx/source."""
+    return {
+        "current":   inet_router.current(),
+        "available": inet_router.list_sources(),
+    }
+
+
+@app.post("/inet/source")
+def inet_set_source(req: VtxSourceRequest):
+    """Switch the internet-channel active source. Body: {"name": "front|vision|ground|black"}.
+    Switch is instant (next /inet/snapshot returns the new source's frame).
+    Does NOT affect /vtx/source — analog VTX feed is independent."""
+    if not inet_router.set_source(req.name):
+        raise HTTPException(
+            status_code=400,
+            detail=f"unknown source: {req.name}; "
+                   f"available: {inet_router.list_sources()}",
+        )
+    return {"current": req.name}
+
+
+@app.get("/inet/snapshot")
+def inet_snapshot():
+    """Single JPEG of whatever source is currently active on the internet
+    channel. Returns 503 if the active source has never produced a valid
+    frame (no last-good cached either)."""
+    frame = inet_router.get_frame()
+    if not frame:
+        raise HTTPException(
+            status_code=503,
+            detail=f"no frame from current internet source "
+                   f"({inet_router.current()})",
+        )
+    return Response(content=frame, media_type="image/jpeg")
+
+
+@app.get("/inet/stream")
+async def inet_stream():
+    """MJPEG stream of the active internet-channel source — primary
+    consumer is the Android app over its data connection, also usable
+    by the web dashboard's "what Android sees" tile."""
+    return StreamingResponse(
+        _broadcast_mjpeg_generator(inet_router),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+# --- Top-level feed inventory ------------------------------------------
+
+@app.get("/feeds")
+def feeds():
+    """Operator-friendly inventory of every video feed surface available.
+    Useful for clients (Android, web UI) to discover what's wired up
+    without parsing the full OpenAPI spec.
+    """
+    cams = camera.list_cameras()
+    return {
+        "cameras": {
+            name: {
+                "active":     status.get("active", False),
+                "resolution": f"{status.get('width')}x{status.get('height')}",
+                "fps":        status.get("fps"),
+                "raw_paths": {
+                    "snapshot": f"/camera/{name}/snapshot",
+                    "stream":   f"/camera/{name}/stream",
+                },
+            }
+            for name, status in cams.items()
+        },
+        "channels": {
+            "vtx": {
+                "purpose":   "analog 5.8 GHz VTX feed (J7 composite-out)",
+                "current":   vtx_broadcast.router.current(),
+                "available": vtx_broadcast.router.list_sources(),
+                "paths": {
+                    "source":   "/vtx/source",
+                    "snapshot": "/vtx/snapshot",
+                    "stream":   "/vtx/stream",
+                },
+            },
+            "inet": {
+                "purpose":   "internet feed (Android app, remote observer)",
+                "current":   inet_router.current(),
+                "available": inet_router.list_sources(),
+                "paths": {
+                    "source":   "/inet/source",
+                    "snapshot": "/inet/snapshot",
+                    "stream":   "/inet/stream",
+                },
+            },
+        },
+    }
 
 
 # --- Vision lock endpoints (drone-side handoff contract, 2026-04-30) -----

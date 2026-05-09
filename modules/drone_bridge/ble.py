@@ -52,7 +52,7 @@ import httpx
 from dbus_fast import BusType
 from dbus_fast.aio import MessageBus
 
-from . import adapters, digest, gatt, rpc, snapshot  # noqa: F401  (snapshot for type hints)
+from . import adapters, digest, gatt, rpc, services, snapshot  # noqa: F401  (snapshot for type hints)
 
 
 log = logging.getLogger("drone_bridge.ble")
@@ -119,10 +119,25 @@ class BleServer:
         self._watchdog_task:  Optional[asyncio.Task] = None
         self._adv_lock      = asyncio.Lock()
 
+        # Lazily initialized in start(); kept as Optional so __init__
+        # stays side-effect free for tests.
+        self._health: Optional[services.ServiceHealth] = None
+
     # ----------------------------------------------------------------- start
 
     async def start(self) -> None:
-        """Connect to the system bus, build the GATT tree, register with BlueZ."""
+        """Connect to the system bus, build the GATT tree, register with BlueZ.
+
+        Reports health under services.registry name 'ble'. Marks unhealthy
+        if startup fails before BlueZ accepts the GATT app + advertisement;
+        marks healthy once both are registered."""
+        self._health = services.registry.register("ble")
+        self._health.extra.update({
+            "adv_name": self.adv_name,
+            "mtu": self.mtu,
+            "service_uuid": SERVICE_UUID,
+        })
+
         await self._wait_for_drone_api()
 
         self._http = httpx.AsyncClient(
@@ -131,19 +146,26 @@ class BleServer:
             transport=httpx.AsyncHTTPTransport(retries=0),
         )
 
-        self._bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-        log.info("connected to system DBus")
+        try:
+            self._bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            log.info("connected to system DBus")
 
-        self._build_gatt_tree()
-        self._export_objects()
+            self._build_gatt_tree()
+            self._export_objects()
 
-        await self._resolve_bluez_managers()
-        await self._register_application()
-        await self._register_advertisement()
+            await self._resolve_bluez_managers()
+            await self._register_application()
+            await self._register_advertisement()
+        except Exception as e:
+            self._health.report_error(f"start failed: {type(e).__name__}: {e}")
+            raise
 
         self._watchdog_task = asyncio.create_task(
             self._advertising_watchdog(), name="ble-watchdog",
         )
+        self._health.extra["app_registered"] = self._app_registered
+        self._health.extra["adv_registered"] = self._adv_registered
+        self._health.report_recovery()
         log.info("ble peripheral up: %s service=%s", self.adv_name, SERVICE_UUID)
 
     async def _wait_for_drone_api(self) -> None:
@@ -352,10 +374,20 @@ class BleServer:
                 if self._adv_mgr is not None:
                     try:
                         active = await self._adv_mgr.get_active_instances()
+                        # Tick the registry on each successful watchdog read.
+                        if self._health is not None:
+                            self._health.extra["active_instances"] = int(active)
+                            self._health.extra["adv_registered"] = self._adv_registered
+                            self._health.extra["app_registered"] = self._app_registered
+                            self._health.report_recovery()
                     except Exception as e:
                         # Likely bluetoothd restarted — try to re-resolve.
                         log.warning("watchdog: ActiveInstances read failed (%s) — "
                                     "re-resolving BlueZ managers", e)
+                        if self._health is not None:
+                            self._health.report_error(
+                                f"ActiveInstances read failed: {type(e).__name__}: {e}"
+                            )
                         try:
                             await self._resolve_bluez_managers()
                             self._app_registered = False
@@ -369,6 +401,8 @@ class BleServer:
                     if active == 0 and self._adv_registered:
                         log.warning("watchdog: ActiveInstances=0 but we think "
                                     "we're advertising — re-registering")
+                        if self._health is not None:
+                            self._health.report_error("adv ActiveInstances=0; re-arming")
                         self._adv_registered = False
                         await self._register_advertisement()
 

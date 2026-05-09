@@ -23,7 +23,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))   # add modules/
 
-from drone_bridge import rpc, digest, snapshot, adapters     # noqa: E402
+from drone_bridge import rpc, digest, snapshot, adapters, serializers, services  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -332,16 +332,21 @@ class TestDigest(unittest.TestCase):
 
 class TestAdapters(unittest.TestCase):
 
-    def test_path_rewrite_arm(self):
+    def test_arm_passthrough(self):
+        # /control/arm is now NATIVE in drone-control (orchestrates vtx +
+        # arming). Adapter must NOT rewrite it back to /arm or vtx setup
+        # will be skipped and motors will stay silent on arm.
         a = adapters.adapt("POST", "/control/arm", b"")
-        self.assertEqual(a.path, "/arm")
+        self.assertEqual(a.path, "/control/arm")
         self.assertEqual(a.method, "POST")
 
-    def test_path_rewrite_disarm(self):
+    def test_disarm_passthrough(self):
+        # Symmetric to /control/arm — native endpoint, no rewrite.
         a = adapters.adapt("POST", "/control/disarm", b"")
-        self.assertEqual(a.path, "/disarm")
+        self.assertEqual(a.path, "/control/disarm")
 
     def test_path_rewrite_mode(self):
+        # /mode is still the drone-control path; /control/mode rewrites to it.
         a = adapters.adapt("POST", "/control/mode",
                            b'{"mode":"LOITER"}')
         self.assertEqual(a.path, "/mode")
@@ -433,6 +438,234 @@ class TestTranslatorDecoders(unittest.TestCase):
         self.assertEqual(mode_index_from_us(1600), 3)
         self.assertEqual(mode_index_from_us(1800), 4)
         self.assertEqual(mode_index_from_us(2000), 5)
+
+
+# ---------------------------------------------------------------------------
+# serializers.py — pluggable telemetry wire formats
+# ---------------------------------------------------------------------------
+
+
+class TestSerializers(unittest.TestCase):
+    """The Serializer protocol formalizes how the canonical Snapshot
+    becomes a wire format. These tests guard the protocol contract +
+    the byte-exactness of the digest format."""
+
+    def _populated_snap(self) -> snapshot.Snapshot:
+        """Build a Snapshot with non-default values across every field
+        the digest serializer reads. Keeps tests honest — a passing
+        round-trip on a default-zero Snapshot is uninformative."""
+        s = snapshot.Snapshot()
+        s.connected = True
+        s.armed = True
+        s.mode = "ALT_HOLD"
+        s.fix_type = 3
+        s.home_set = True
+        s.voltage_v = 16.8
+        s.battery_pct = 0.85
+        s.lat = 47.6062
+        s.lon = -122.3321
+        s.alt_amsl_m = 100.5
+        s.alt_rel_m = 12.3
+        s.ground_speed_mps = 5.4
+        s.heading_deg = 180.0
+        s.roll_rad = 0.1
+        s.pitch_rad = -0.2
+        s.rssi_dbm = -50
+        s.uplink_lq = 95
+        return s
+
+    def test_digest_serializer_implements_protocol(self):
+        # The protocol is runtime-checkable; isinstance() should accept.
+        self.assertIsInstance(serializers.DIGEST, serializers.Serializer)
+        self.assertEqual(serializers.DIGEST.wire_format, "digest-v1")
+
+    def test_json_full_serializer_implements_protocol(self):
+        self.assertIsInstance(serializers.JSON_FULL, serializers.Serializer)
+        self.assertEqual(serializers.JSON_FULL.wire_format, "json-full-v1")
+
+    def test_digest_serializer_matches_legacy_layout(self):
+        """The new DigestSerializer must produce the same bytes the
+        legacy digest.pack() produced — same DIGEST_FORMAT, same field
+        order, same clamping. Otherwise we silently broke the wire
+        format that the ground side parses."""
+        snap = self._populated_snap()
+        # Inject the snap into the global state so digest.pack() sees it.
+        # (digest.pack() is the legacy path; DigestSerializer.serialize
+        # takes an explicit Snapshot.)
+        with snapshot.state_lock:
+            for f in snapshot.Snapshot.__dataclass_fields__:
+                if hasattr(snap, f):
+                    setattr(snapshot.state, f, getattr(snap, f))
+        try:
+            via_legacy = digest.pack()
+            via_serializer = serializers.DIGEST.serialize(snap)
+        finally:
+            # Reset global state so other tests aren't polluted.
+            with snapshot.state_lock:
+                snapshot.state = snapshot.Snapshot()
+        # Bytes 28-32 are monotonic_ms — they differ by tens of ms
+        # between the two pack calls. Compare everything else byte-exact.
+        self.assertEqual(via_legacy[:28], via_serializer[:28])
+        self.assertEqual(len(via_legacy), digest.DIGEST_SIZE)
+        self.assertEqual(len(via_serializer), digest.DIGEST_SIZE)
+
+    def test_digest_round_trip(self):
+        """serialize → deserialize → key fields preserved."""
+        snap = self._populated_snap()
+        raw = serializers.DIGEST.serialize(snap)
+        unpacked = serializers.DIGEST.deserialize(raw)
+        self.assertEqual(unpacked["armed"], True)
+        self.assertEqual(unpacked["gps_3d_fix"], True)
+        self.assertEqual(unpacked["home_set"], True)
+        self.assertEqual(unpacked["mode_idx"], digest.MODE_INDEX["ALT_HOLD"])
+        self.assertAlmostEqual(unpacked["latitude"], 47.6062, places=4)
+        self.assertAlmostEqual(unpacked["longitude"], -122.3321, places=4)
+        self.assertEqual(unpacked["voltage_mv"], 16800)
+        self.assertEqual(unpacked["battery_pct"], 85)
+
+    def test_digest_pure_function_no_state_mutation(self):
+        """DigestSerializer.serialize must not mutate the input Snapshot.
+        Pure-function discipline matters because real callers pass in
+        a stable view and mustn't see it change underneath them."""
+        snap = self._populated_snap()
+        before = (snap.armed, snap.mode, snap.lat, snap.lon, snap.battery_pct)
+        serializers.DIGEST.serialize(snap)
+        after = (snap.armed, snap.mode, snap.lat, snap.lon, snap.battery_pct)
+        self.assertEqual(before, after)
+
+    def test_json_full_serializer_shape(self):
+        """JsonFullSerializer must return every field the debug HTTP
+        endpoint promises. Schema regression test — adding a Snapshot
+        field requires updating the serializer (and this test catches
+        a missing update)."""
+        snap = self._populated_snap()
+        d = serializers.JSON_FULL.serialize(snap)
+        for key in ("connected", "armed", "mode", "voltage", "battery_pct",
+                    "lat", "lon", "alt_amsl", "alt_rel", "ground_speed",
+                    "heading", "roll_deg", "pitch_deg", "fix_type",
+                    "home_set", "rssi_dbm", "uplink_lq",
+                    "drone_age_ms", "elrs_age_ms"):
+            self.assertIn(key, d, f"missing field: {key}")
+        # Spot-check unit conversions
+        self.assertEqual(d["voltage"], 16.8)
+        self.assertAlmostEqual(d["battery_pct"], 85.0, places=1)
+        self.assertAlmostEqual(d["roll_deg"], 5.73, places=1)  # 0.1 rad ≈ 5.73°
+        self.assertAlmostEqual(d["pitch_deg"], -11.46, places=1)
+
+
+# ---------------------------------------------------------------------------
+# services.py — health registry
+# ---------------------------------------------------------------------------
+
+
+class TestServiceRegistry(unittest.TestCase):
+    """The registry's job is observability without orchestration. Tests
+    cover: registration idempotency, error/recovery state transitions,
+    aggregate signal correctness, concurrency safety."""
+
+    def setUp(self):
+        # Each test gets a fresh registry so they don't bleed state.
+        self.reg = services.ServiceRegistry()
+
+    def test_register_returns_health_record(self):
+        h = self.reg.register("foo")
+        self.assertEqual(h.name, "foo")
+        self.assertTrue(h.healthy)
+        self.assertEqual(h.error_count, 0)
+
+    def test_register_idempotent(self):
+        """Registering the same name twice returns the same object so
+        services that restart in-place don't lose their counters."""
+        h1 = self.reg.register("foo")
+        h1.error_count = 7
+        h2 = self.reg.register("foo")
+        self.assertIs(h1, h2)
+        self.assertEqual(h2.error_count, 7)
+
+    def test_report_error_marks_unhealthy(self):
+        h = self.reg.register("foo")
+        h.report_error("oops")
+        self.assertFalse(h.healthy)
+        self.assertEqual(h.last_error, "oops")
+        self.assertEqual(h.error_count, 1)
+
+    def test_report_error_increments_counter(self):
+        h = self.reg.register("foo")
+        h.report_error("a")
+        h.report_error("b")
+        h.report_error("c")
+        self.assertEqual(h.error_count, 3)
+        self.assertEqual(h.last_error, "c")
+
+    def test_report_recovery_resets_health(self):
+        h = self.reg.register("foo")
+        h.report_error("oops")
+        h.report_recovery()
+        self.assertTrue(h.healthy)
+        # error_count is NOT reset by recovery — historical record matters
+        self.assertEqual(h.error_count, 1)
+        # last_error is NOT cleared either (also historical)
+        self.assertEqual(h.last_error, "oops")
+
+    def test_report_recovery_idempotent_when_healthy(self):
+        h = self.reg.register("foo")
+        h.report_recovery()  # already healthy
+        self.assertTrue(h.healthy)
+        self.assertIsNone(h.last_recovery_at_mono)  # didn't fire
+
+    def test_aggregate_healthy_when_all_ok(self):
+        self.reg.register("a")
+        self.reg.register("b")
+        self.assertTrue(self.reg.healthy())
+
+    def test_aggregate_unhealthy_when_any_bad(self):
+        self.reg.register("a")
+        h = self.reg.register("b")
+        h.report_error("flaky")
+        self.assertFalse(self.reg.healthy())
+
+    def test_aggregate_dict_shape(self):
+        self.reg.register("a")
+        h = self.reg.register("b")
+        h.extra["custom_metric"] = 42
+        d = self.reg.aggregate_dict()
+        self.assertIn("ok", d)
+        self.assertIn("services", d)
+        self.assertEqual(d["service_count"], 2)
+        names = {s["name"] for s in d["services"]}
+        self.assertEqual(names, {"a", "b"})
+        # extras pass through
+        b = next(s for s in d["services"] if s["name"] == "b")
+        self.assertEqual(b["extra"]["custom_metric"], 42)
+
+    def test_extra_dict_isolation_in_to_dict(self):
+        """to_dict() must return a copy of `extra` — mutating the response
+        must not affect the live ServiceHealth record."""
+        h = self.reg.register("foo")
+        h.extra["x"] = 1
+        d = h.to_dict()
+        d["extra"]["x"] = 999
+        self.assertEqual(h.extra["x"], 1)
+
+    def test_concurrent_register_is_safe(self):
+        """Multiple threads calling register("same") concurrently should
+        all receive the same record. Stresses the lock."""
+        import threading as _th
+        results = []
+        barrier = _th.Barrier(8)
+
+        def worker():
+            barrier.wait()
+            h = self.reg.register("contended")
+            results.append(id(h))
+
+        threads = [_th.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        # All threads see the same instance
+        self.assertEqual(len(set(results)), 1)
 
 
 if __name__ == "__main__":

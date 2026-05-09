@@ -22,7 +22,7 @@ import time
 
 import requests
 
-from . import snapshot
+from . import services, snapshot
 
 
 log = logging.getLogger("drone_bridge.pump")
@@ -31,10 +31,18 @@ log = logging.getLogger("drone_bridge.pump")
 # --- Drone-control poller -------------------------------------------------
 
 def poll_drone(api_base: str, hz: float) -> None:
-    """Background loop. Updates the drone-side fields of the snapshot."""
+    """Background loop. Updates the drone-side fields of the snapshot.
+
+    Reports health into services.registry under name 'pump-drone'.
+    Each successful poll calls report_recovery() (no-op if already
+    healthy); each exception calls report_error() with the exception
+    type. extra['polls_ok']/['polls_failed'] track lifetime counters."""
     period = 1.0 / hz
     sess = requests.Session()
     last_log = 0.0
+    health = services.registry.register("pump-drone")
+    health.extra.update({"polls_ok": 0, "polls_failed": 0,
+                         "api_base": api_base, "hz": hz})
 
     while True:
         t0 = time.monotonic()
@@ -82,6 +90,9 @@ def poll_drone(api_base: str, hz: float) -> None:
                 )
                 s.drone_last_ts = now
 
+            health.extra["polls_ok"] = health.extra.get("polls_ok", 0) + 1
+            health.report_recovery()
+
             if now - last_log >= 30.0:
                 last_log = now
                 with snapshot.state_lock:
@@ -97,6 +108,8 @@ def poll_drone(api_base: str, hz: float) -> None:
             with snapshot.state_lock:
                 snapshot.state.drone_errors += 1
                 err_count = snapshot.state.drone_errors
+            health.extra["polls_failed"] = health.extra.get("polls_failed", 0) + 1
+            health.report_error(f"{type(e).__name__}: {e}")
             if err_count == 1 or err_count % 50 == 0:
                 log.warning("drone-poll failed (%s): %s", type(e).__name__, e)
 
@@ -107,9 +120,14 @@ def poll_drone(api_base: str, hz: float) -> None:
 # --- ELRS link poller -----------------------------------------------------
 
 def poll_elrs(api_base: str, hz: float) -> None:
-    """Background loop. Updates RSSI / LQ from elrs-telemetry."""
+    """Background loop. Updates RSSI / LQ from elrs-telemetry.
+
+    Reports health under services.registry name 'pump-elrs'."""
     period = 1.0 / hz
     sess = requests.Session()
+    health = services.registry.register("pump-elrs")
+    health.extra.update({"polls_ok": 0, "polls_failed": 0,
+                         "api_base": api_base, "hz": hz})
 
     while True:
         t0 = time.monotonic()
@@ -123,10 +141,14 @@ def poll_elrs(api_base: str, hz: float) -> None:
                     s.rssi_dbm  = int(link.get("uplink_rssi_ant1") or 0)
                     s.uplink_lq = int(link.get("uplink_lq") or 0)
                     s.elrs_last_ts = time.monotonic()
+            health.extra["polls_ok"] = health.extra.get("polls_ok", 0) + 1
+            health.report_recovery()
         except Exception as e:
             with snapshot.state_lock:
                 snapshot.state.elrs_errors += 1
                 err_count = snapshot.state.elrs_errors
+            health.extra["polls_failed"] = health.extra.get("polls_failed", 0) + 1
+            health.report_error(f"{type(e).__name__}: {e}")
             if err_count == 1 or err_count % 200 == 0:
                 log.warning("elrs-poll failed (%s): %s", type(e).__name__, e)
 

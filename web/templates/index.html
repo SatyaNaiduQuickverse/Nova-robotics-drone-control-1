@@ -156,8 +156,12 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16p
         <div class="section">
             <h3>Commands</h3>
             <div class="btn-grid">
-                <button class="btn btn-arm" onclick="apiPost('/api/arm')">ARM</button>
-                <button class="btn btn-disarm" onclick="apiPost('/api/disarm')">DISARM</button>
+                <!-- ARM/DISARM go through /control/arm and /control/disarm so virtual_tx
+                     is automatically set up before arming. Otherwise FC arms but motors
+                     stay at PWM 1000 (no throttle source). FORCE keeps /disarm/force —
+                     it's the emergency path and bypasses normal arming/vtx logic. -->
+                <button class="btn btn-arm" onclick="apiPost('/api/control/arm')">ARM</button>
+                <button class="btn btn-disarm" onclick="apiPost('/api/control/disarm')">DISARM</button>
                 <button class="btn btn-disarm" onclick="apiPost('/api/disarm/force')">FORCE</button>
             </div>
         </div>

@@ -128,6 +128,21 @@ def vtx_stream():
     return _stream_proxy(f"{API}/vtx/stream")
 
 
+# --- Internet broadcast channel proxies (parallel of /api/vtx/*) -------
+# /api/inet/source GET+POST go through the generic /api/<path> proxy below;
+# only the binary/streaming endpoints need dedicated routes since the
+# generic proxy assumes JSON.
+
+@app.route("/api/inet/snapshot")
+def inet_snapshot():
+    return _snapshot_proxy(f"{API}/inet/snapshot")
+
+
+@app.route("/api/inet/stream")
+def inet_stream():
+    return _stream_proxy(f"{API}/inet/stream")
+
+
 @app.route("/vision/lock", methods=["POST"])
 def vision_lock():
     try:

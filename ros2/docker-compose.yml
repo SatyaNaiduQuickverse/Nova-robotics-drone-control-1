@@ -16,7 +16,7 @@ services:
       # Dev mode: skip MAVROS / FC requirement so we can work on camera +
       # VTX path without the Pixhawk plugged in. Set back to "1" (or
       # remove this line) for production / actual flight.
-      - MAVROS_REQUIRED=0
+      - MAVROS_REQUIRED=1
     command: ["bash", "/entrypoint.sh"]
     stop_grace_period: 10s
     restart: unless-stopped
@@ -61,7 +61,10 @@ services:
     # Inference runs on the Hailo NPU, not the CPU. One core is plenty for
     # frame fetch + pre/post processing + the HTTP server.
     cpus: 1.5
-    restart: unless-stopped
+    # Do NOT auto-start (Pi reboot, daemon restart, or `docker compose up -d`).
+    # Hailo NPU vision is opt-in: start manually with `docker start vision-detect`
+    # or `docker compose up -d vision` when it's actually needed.
+    restart: "no"
     depends_on:
       - drone
 
@@ -78,4 +81,3 @@ services:
     restart: unless-stopped
     depends_on:
       - drone
-      - vision

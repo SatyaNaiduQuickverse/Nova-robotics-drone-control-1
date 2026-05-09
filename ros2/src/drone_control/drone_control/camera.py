@@ -20,11 +20,21 @@ from collections import deque
 from typing import Optional
 
 
-# Stable by-id path for the USB front camera (survives replug). Pi Cam
-# Module 3 / CSI path retired — only USB camera is connected, used as
-# the front (tracking) camera. Lenovo FHD UVC webcam — true 30 fps at
-# 1280x720 MJPEG (unlike the Jieli AV-capture chip which capped at ~16).
+# Stable by-id paths for the USB cameras (survive replug; /dev/videoN
+# numbering shifts when devices are added/removed).
+
+# Front (primary) camera — Lenovo FHD UVC webcam. True 30 fps MJPEG at
+# 1280x720, kernel-direct v4l2-ctl mmap path. Goes out the analog VTX
+# by default and is what vision-detect consumes for YOLO inference.
 FRONT_DEVICE = "/dev/v4l/by-id/usb-Sonix_Technology_Co.__Ltd._Lenovo_FHD_Webcam_Audio_SN0001-video-index0"
+
+# Ground / secondary camera — Jieli Technology USB webcam.
+# Supports native MJPEG at 1280x720@30 (verified via v4l2-ctl --list-frameintervals),
+# so it uses the same kernel-direct v4l2-ctl mmap path as the Lenovo.
+# Logical role: the "ground" source on both broadcast channels — typically
+# downward / ground-context view, but the operator picks the physical
+# orientation when mounting it.
+GROUND_DEVICE = "/dev/v4l/by-id/usb-Jieli_Technology_USB_Composite_Device-video-index0"
 
 # VRX loopback capture — MacroSilicon MS210x USB AV-grabber receiving
 # the 5.8 GHz analog feed from the on-drone GEPRC VTX. YUYV-only chip
@@ -36,16 +46,26 @@ VRX_DEVICE = "/dev/v4l/by-id/usb-MACROSILICON_USB_Video_20200909-video-index0"
 
 # Per-camera config:
 #   tracking      — USB Lenovo FHD webcam (front-facing). MJPEG native.
-#                   Consumed by the dashboard tracking tile and by
-#                   vision-detect. The frame this serves is what the
-#                   VTX renderer also reads → goes out J7 composite.
+#                   Consumed by the dashboard tracking tile, by vision-detect,
+#                   and by the analog VTX renderer (default `front` source).
+#   ground        — USB Jieli webcam (typically downward-facing). MJPEG
+#                   native. Available as the `ground` source on both vtx
+#                   and inet broadcast channels.
 #   vrx_loopback  — MacroSilicon USB AV-capture receiving the 5.8 GHz
 #                   feed back from the VTX (loopback validation).
-#                   YUYV-only, transcoded to MJPEG via ffmpeg.
+#                   YUYV-only, transcoded to MJPEG via ffmpeg. Currently
+#                   disabled to save CPU — re-enable by uncommenting.
 CAMERAS = {
     "tracking": {
         "source": "v4l2_mjpeg",
         "device": FRONT_DEVICE,
+        "width": 1280,
+        "height": 720,
+        "fps": 30,
+    },
+    "ground": {
+        "source": "v4l2_mjpeg",
+        "device": GROUND_DEVICE,
         "width": 1280,
         "height": 720,
         "fps": 30,

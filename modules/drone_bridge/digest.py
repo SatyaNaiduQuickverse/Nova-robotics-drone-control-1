@@ -99,46 +99,25 @@ def pack() -> bytes:
     clamped, not rejected — the wire format has no "invalid" representation
     for most fields, and the receiver checks `monotonic_ms` to detect
     staleness.
+
+    Backwards-compat shim: still reads from the global snapshot.state.
+    The actual byte layout lives in `serializers.DigestSerializer` —
+    callers wanting deterministic / pure-function packing should use
+    that directly with an explicit Snapshot. Existing call sites
+    (BLE fast-path, debug HTTP) keep using this so the refactor is
+    additive, not breaking.
     """
+    # Local import avoids a cycle: serializers imports digest for the
+    # constants and helpers above. At runtime the import is cheap.
+    from . import serializers
+
     with snapshot.state_lock:
-        s = snapshot.state
-
-        flags = 0
-        if s.armed:        flags |= 0x01
-        # bit 1 ekf_ok — drone-control doesn't surface this; reserved for now
-        if s.fix_type >= 3: flags |= 0x04
-        if s.home_set:     flags |= 0x08
-        flags |= (mode_to_index(s.mode) & 0x0F) << 4
-
-        battery_pct = _clamp(s.battery_pct * 100, 0, 255)
-        voltage_mv  = _clamp(s.voltage_v * 1000, 0, 0xFFFF)
-
-        lat_e7 = _clamp(s.lat * 1e7, -2_147_483_648, 2_147_483_647)
-        lon_e7 = _clamp(s.lon * 1e7, -2_147_483_648, 2_147_483_647)
-
-        alt_amsl_dm = _clamp(s.alt_amsl_m * 10, -32_768, 32_767)
-        alt_rel_dm  = _clamp(s.alt_rel_m  * 10, -32_768, 32_767)
-
-        gs_cm_s    = _clamp(s.ground_speed_mps * 100, 0, 0xFFFF)
-        heading_cd = _clamp(s.heading_deg * 100,    -32_768, 32_767)
-        roll_cd    = _clamp(math.degrees(s.roll_rad)  * 100, -32_768, 32_767)
-        pitch_cd   = _clamp(math.degrees(s.pitch_rad) * 100, -32_768, 32_767)
-
-        rssi_pct = rssi_dbm_to_pct(s.rssi_dbm)
-        lq_pct   = _clamp(s.uplink_lq, 0, 100)
-
-        mono_ms = int(snapshot.uptime_s() * 1000) & 0xFFFFFFFF
-
-    return struct.pack(
-        DIGEST_FORMAT,
-        flags, battery_pct, voltage_mv,
-        lat_e7, lon_e7,
-        alt_amsl_dm, alt_rel_dm,
-        gs_cm_s, heading_cd, roll_cd, pitch_cd,
-        rssi_pct, lq_pct,
-        0,                # reserved u16
-        mono_ms,
-    )
+        # Take a shallow snapshot copy so the serializer sees a stable
+        # view even if the pump mutates state mid-pack. Snapshot is a
+        # dataclass — replace() makes a new instance with the same fields.
+        import dataclasses as _dc
+        s = _dc.replace(snapshot.state)
+    return serializers.DIGEST.serialize(s)
 
 
 def unpack(buf: bytes) -> dict:

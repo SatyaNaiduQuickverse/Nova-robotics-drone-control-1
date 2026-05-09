@@ -26,7 +26,7 @@ from typing import Optional
 
 from flask import Flask, Response, jsonify
 
-from . import ble, digest, pump, snapshot, translator
+from . import ble, digest, pump, serializers, services, snapshot, translator
 
 
 # --- Config (env-driven; sensible defaults for this Pi) ------------------
@@ -68,16 +68,44 @@ debug_app = Flask("drone_bridge.debug")
 
 @debug_app.route("/healthz")
 def healthz():
+    """Aggregate health: 200 iff every registered service is healthy.
+    Returns 503 with the list of failing services otherwise. Per-service
+    detail at /services or /healthz/<name>."""
     with snapshot.state_lock:
         s = snapshot.state
-        return jsonify(
-            ok=True,
-            uptime_s=round(snapshot.uptime_s(), 2),
-            drone_age_ms=snapshot.age_ms(s.drone_last_ts),
-            elrs_age_ms=snapshot.age_ms(s.elrs_last_ts),
-            drone_errors=s.drone_errors,
-            elrs_errors=s.elrs_errors,
-        )
+    body = {
+        "ok": services.registry.healthy(),
+        "uptime_s": round(snapshot.uptime_s(), 2),
+        "drone_age_ms": snapshot.age_ms(s.drone_last_ts),
+        "elrs_age_ms": snapshot.age_ms(s.elrs_last_ts),
+        "drone_errors": s.drone_errors,
+        "elrs_errors": s.elrs_errors,
+        "services_summary": [
+            {"name": h.name, "healthy": h.healthy}
+            for h in services.registry.all()
+        ],
+    }
+    status = 200 if body["ok"] else 503
+    return jsonify(body), status
+
+
+@debug_app.route("/healthz/<name>")
+def healthz_service(name: str):
+    """Per-service health detail. 200 if healthy, 503 if not, 404 if
+    unknown service. The body always contains the full ServiceHealth
+    snapshot (extras + counters) so a 503 response is debuggable."""
+    h = services.registry.get(name)
+    if h is None:
+        return jsonify(error=f"unknown service: {name}",
+                       known=[s.name for s in services.registry.all()]), 404
+    return jsonify(h.to_dict()), 200 if h.healthy else 503
+
+
+@debug_app.route("/services")
+def services_list():
+    """Full inventory of every registered subsystem with health + extras.
+    Designed for human debugging — pretty-print friendly."""
+    return jsonify(services.registry.aggregate_dict())
 
 
 @debug_app.route("/telemetry/digest")
@@ -90,35 +118,22 @@ def digest_binary():
 @debug_app.route("/telemetry/digest/json")
 def digest_json():
     """Human-readable view of the snapshot + the unpacked digest fields.
-    Not on the BLE forwarding path."""
+    Not on the BLE forwarding path.
+
+    Routes through the canonical serializers (DigestSerializer +
+    JsonFullSerializer) — adding a field to Snapshot + JsonFullSerializer
+    auto-flows here. Don't duplicate field-formatting logic in this
+    endpoint."""
+    import dataclasses as _dc
     with snapshot.state_lock:
-        s = snapshot.state
-    raw = digest.pack()
+        snap = _dc.replace(snapshot.state)  # immutable copy
+    raw = serializers.DIGEST.serialize(snap)
     return jsonify(
         hex=raw.hex(),
         bytes=len(raw),
-        unpacked=digest.unpack(raw),
-        raw_snapshot={
-            "connected":    s.connected,
-            "armed":        s.armed,
-            "mode":         s.mode,
-            "voltage":      round(s.voltage_v, 2),
-            "battery_pct":  round(s.battery_pct * 100, 1),
-            "lat":          s.lat,
-            "lon":          s.lon,
-            "alt_amsl":     round(s.alt_amsl_m, 2),
-            "alt_rel":      round(s.alt_rel_m, 2),
-            "ground_speed": round(s.ground_speed_mps, 2),
-            "heading":      round(s.heading_deg, 2),
-            "roll_deg":     round(math.degrees(s.roll_rad), 2),
-            "pitch_deg":    round(math.degrees(s.pitch_rad), 2),
-            "fix_type":     s.fix_type,
-            "home_set":     s.home_set,
-            "rssi_dbm":     s.rssi_dbm,
-            "uplink_lq":    s.uplink_lq,
-            "drone_age_ms": snapshot.age_ms(s.drone_last_ts),
-            "elrs_age_ms":  snapshot.age_ms(s.elrs_last_ts),
-        },
+        unpacked=serializers.DIGEST.deserialize(raw),
+        raw_snapshot=serializers.JSON_FULL.serialize(snap),
+        wire_format=serializers.DIGEST.wire_format,
     )
 
 
