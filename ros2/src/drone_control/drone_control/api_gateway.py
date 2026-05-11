@@ -233,6 +233,21 @@ def _call_arming(arm: bool) -> tuple[bool, str]:
     return False, "Arming service unavailable" if result is None else "Command rejected by FCU"
 
 
+def _call_arming_force() -> tuple[bool, str]:
+    """Force-disarm via MAV_CMD_COMPONENT_ARM_DISARM with the ArduPilot
+    force magic (21196). Bypasses normal disarm rejection (motors spinning,
+    throttle not at min, yaw stick not at corner). Caller must hold
+    _svc_lock. Idempotent when already disarmed."""
+    req = CommandLong.Request()
+    req.command = 400        # MAV_CMD_COMPONENT_ARM_DISARM
+    req.param1 = 0.0         # 0 = disarm
+    req.param2 = 21196.0     # force magic
+    result = _call_service(_command_client, req, timeout=5.0)
+    if result and result.success:
+        return True, "Force disarmed"
+    return False, "Command service unavailable" if result is None else "Force disarm failed"
+
+
 def _set_mode(mode: str, platform: str) -> tuple[bool, str, str]:
     """Set flight mode. Caller must hold _svc_lock."""
     telem = telemetry.get()
@@ -638,15 +653,19 @@ def control_arm():
 def control_disarm():
     """Disarm after manual flight (canonical client-facing disarm endpoint).
 
-    Calls the FC arming service to disarm. Does NOT disable virtual_tx —
-    the operator may rearm without re-enabling, and tearing down the
-    publish thread mid-session has caused arm-then-disarm cascades in
-    the past (see virtual_tx.py:Bug 1).
+    Tries gentle disarm via the arming service first. On the bench with
+    motors at MOT_SPIN_ARM idle (common), ArduPilot rejects gentle disarm
+    ("motors still running"). Operator clicked DISARM with clear intent,
+    so escalate to force-disarm using MAV_CMD_COMPONENT_ARM_DISARM with
+    the force magic. Logs the escalation visibly.
+
+    Does NOT disable virtual_tx — operator may rearm without re-enabling,
+    and tearing down the publish thread mid-session has caused
+    arm-then-disarm cascades in the past (see virtual_tx.py:Bug 1).
 
     For full virtual_tx teardown, use POST /control/disable explicitly.
-    For emergency disarm with motors spinning, use POST /disarm/force —
-    the FC accepts that idempotently and bypasses the normal disarm
-    rejection that fires when motors are still under load.
+    For unconditional emergency-abort (skip the gentle attempt), use
+    POST /disarm/force directly.
     """
     telem = telemetry.get()
     if not telem["state"]["connected"]:
@@ -655,9 +674,25 @@ def control_disarm():
     if not telem["state"]["armed"]:
         return ArmResponse(success=True, message="Already disarmed")
 
+    # Phase 1: gentle disarm via /mavros/cmd/arming
     with _svc_lock:
         success, message = _call_arming(False)
-    return ArmResponse(success=success, message=message)
+    if success:
+        return ArmResponse(success=True, message=message)
+
+    # Phase 2: FCU rejected. Escalate to force-disarm (operator intent
+    # is unambiguous; the bench-motors-spinning rejection is exactly
+    # what force-disarm exists for). The phone-side UI is responsible
+    # for not exposing DISARM during autonomous flight where this
+    # escalation would be dangerous.
+    print(f"[/control/disarm] gentle rejected ({message}) — escalating to force")
+    with _svc_lock:
+        force_ok, force_msg = _call_arming_force()
+    if force_ok:
+        return ArmResponse(success=True,
+                           message=f"force-disarmed (gentle failed: {message})")
+    return ArmResponse(success=False,
+                       message=f"both paths failed — gentle: {message}; force: {force_msg}")
 
 
 @app.post("/control/enable", response_model=ControlResponse)

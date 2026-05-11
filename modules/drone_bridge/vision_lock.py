@@ -855,14 +855,24 @@ class VisionLockHandler:
 
     def _dispatch_source_change(self, vl: "VisionLockState", name: str,
                                 code: int) -> None:
-        """Fire a /vtx/source POST iff the source name actually changes.
-        VISION_BOX and SRC_VISION share name 'vision' so transitions
-        between them don't re-POST."""
+        """Fire /vtx/source AND /inet/source POSTs iff the source name
+        actually changes. VISION_BOX and SRC_VISION share name 'vision'
+        so transitions between them don't re-POST.
+
+        Why both channels in lockstep: the operator has a single source-
+        chip UI on the phone (FRONT/GROUND/VISION). In Radio mode the
+        only feed they see is the internet stream on the tablet; in
+        analog-VTX-also mode they see the same source on the 5.8 GHz
+        side. Driving both keeps operator mental model coherent. The
+        underlying routers stay independent at the API level — anyone
+        wanting to decouple can POST /vtx/source and /inet/source
+        separately."""
         if vl.prev_source_name == name:
             return
         vl.events_source_change += 1
-        log.info("vtx_source change → %s (code=%d)", name, code)
+        log.info("source change → %s (code=%d)", name, code)
         asyncio.create_task(self._post_source(name))
+        asyncio.create_task(self._post_inet_source(name))
         vl.prev_source_name = name
 
     # --- ENGAGE: rules 2a/2c/2d are sync (local state, free);
@@ -1019,3 +1029,16 @@ class VisionLockHandler:
             log.info("/vtx/source(%s) → %d", name, r.status_code)
         except httpx.RequestError as e:
             log.warning("/vtx/source(%s) FAILED: %s", name, e)
+
+    async def _post_inet_source(self, name: str) -> None:
+        """POST /inet/source — internet/Android feed channel. Same schema
+        as /vtx/source. Fired in parallel from _dispatch_source_change so
+        an /inet failure doesn't block the /vtx POST (and vice versa).
+        """
+        try:
+            r = await self._client.post(
+                "/inet/source", json={"name": name}, timeout=2.0,
+            )
+            log.info("/inet/source(%s) → %d", name, r.status_code)
+        except httpx.RequestError as e:
+            log.warning("/inet/source(%s) FAILED: %s", name, e)
