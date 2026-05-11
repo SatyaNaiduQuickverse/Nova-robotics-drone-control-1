@@ -703,7 +703,8 @@ class VisionLockHandler:
           2. ESCAPE timeout check + sub-opcode consumption (ESCAPE prefix
              → next frame as sub-opcode 10..15).
           3. Flat-code state machine on `code != prev_ops_code` transitions:
-             - source codes (0..3): POST /vtx/source on change
+             - source codes (1..3): POST /vtx/source AND /inet/source
+               (code 0 is pulse-shape IDLE — no source dispatch)
              - VISION_BOX (4): set source=vision + box_committed=True
              - button codes (5..8): require prev=VISION_BOX, fire 6-rule contract
              - ESCAPE (9): enter ESCAPE_PENDING
@@ -781,7 +782,17 @@ class VisionLockHandler:
 
         # Transition handlers — exactly one branch fires per call.
         if code == OPS_CODE_IDLE:
-            self._dispatch_source_change(vl, "black", code)
+            # Code 0 is the pulse-shape IDLE between rising-edge ops codes —
+            # the phone sends IDLE → CODE → IDLE (~200 ms total) for source
+            # / button taps. The trailing IDLE must NOT be re-interpreted
+            # as "switch to BLACK source" or every tap ends at BLACK
+            # regardless of the operator's selection. To go BLACK explicitly,
+            # the phone must use a dedicated path (BLE direct POST to
+            # /inet/source name=black, or a future dedicated ops code).
+            #
+            # Selection-state side effects still need to clear though: any
+            # operator return to IDLE means no box is committed for an
+            # upcoming button press.
             vl.prev_box_committed = False
 
         elif code == OPS_CODE_SRC_FRONT:
