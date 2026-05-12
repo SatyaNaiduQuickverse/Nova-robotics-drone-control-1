@@ -28,9 +28,12 @@ services:
       # plugged back in (different USB serial).
       - ELRS_SERIAL_DEVICE=/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_FC:01:2C:E8:BC:64-if00
       - ELRS_PORT=5003
-      # Token-bucket rate limit for telemetry POSTs. ELRS downlink physically
-      # caps around 3 Hz; 5 Hz here gives a small burst tolerance.
-      - ELRS_TX_RATE_HZ=5
+      # Token-bucket rate limit for telemetry POSTs. Raised to 200 Hz to allow
+      # an internal stub producer to feed the new downlink Tx at packet rate
+      # (~100 Hz) so the bound Rx stays in "linked" state visible-bind during
+      # H4-prep. External producers (operator app etc.) should rate-limit
+      # themselves via this same env if needed.
+      - ELRS_TX_RATE_HZ=200
       # Set ELRS_API_TOKEN=... to require Authorization: Bearer on POSTs.
       # Empty (default) leaves POSTs open — fine on a private LAN.
     restart: unless-stopped

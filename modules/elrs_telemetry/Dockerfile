@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir \
         simple-websocket==1.0.0
 
 WORKDIR /app
-COPY crsf.py service.py ble_server.py ./
+COPY crsf.py mux.py service.py ble_server.py ./
 
 # Service binds 5003. network_mode: host in compose makes this the host port.
 EXPOSE 5003
