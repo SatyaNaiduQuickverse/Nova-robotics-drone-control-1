@@ -22,6 +22,7 @@ from flask import Flask, abort, jsonify, request
 from flask_sock import Sock
 
 import crsf
+import mux
 import ble_server
 
 
@@ -246,6 +247,16 @@ def _handle_frame(addr: int, ftype: int, payload: bytes):
 
 def _reader_loop():
     parser = crsf.CRSFParser()
+
+    # v2 firmware muxes both UARTs onto USB-CDC using the 0xCAFE-framed
+    # protocol (see mux.py). Demux first, then feed only the ch=2 (uplink
+    # Rx) payload to the CRSF parser. ch=1 is Tx talkback — log volume
+    # only for now; not routed to any consumer until Phase H4 wires a
+    # telemetry consumer. Diagnostic '#…\n' lines from the ESP go to a
+    # separate logger.
+    decoder = mux.MuxDecoder(diag_callback=lambda line: log.info("ESP: %s", line))
+    ch1_bytes_in = 0   # downlink Tx talkback (LINK_STATISTICS et al.)
+
     backoff = 0.5
     last_log = 0.0
     while True:
@@ -256,7 +267,7 @@ def _reader_loop():
                 state.serial_connected = True
             _serial_handle["ser"] = ser
             backoff = 0.5
-            log.info("serial open")
+            log.info("serial open (v2 mux protocol)")
 
             while True:
                 chunk = ser.read(256)
@@ -264,8 +275,18 @@ def _reader_loop():
                     continue
                 with state_lock:
                     state.bytes_in += len(chunk)
-                for addr, ftype, pl in parser.feed(chunk):
-                    _handle_frame(addr, ftype, pl)
+                for channel, payload in decoder.feed(chunk):
+                    if channel == mux.CHAN_RX:
+                        # Existing uplink path: CRSF frames from the bound
+                        # ground-Tx → drone-Rx pair. Behaviour identical to
+                        # the v1 firmware era — the mux layer is invisible
+                        # to downstream consumers.
+                        for addr, ftype, pl in parser.feed(payload):
+                            _handle_frame(addr, ftype, pl)
+                    elif channel == mux.CHAN_TX:
+                        # Tx talkback (link stats, device-info responses).
+                        # No consumer wired yet; count bytes for stats.
+                        ch1_bytes_in += len(payload)
 
                 # Throttled summary every 10 s so the journal stays readable.
                 now = time.monotonic()
@@ -275,10 +296,14 @@ def _reader_loop():
                         elapsed = now - state.started_at
                         log.info(
                             "stats uplink_hz=%.1f link_hz=%.1f bytes_in=%d "
-                            "bytes_out=%d devices=%d",
+                            "bytes_out=%d devices=%d "
+                            "mux=[rx_frames=%d tx_talkback_bytes=%d "
+                            "diag_lines=%d bad_sync=%d]",
                             state.rc_count / elapsed if elapsed > 0 else 0,
                             state.ls_count / elapsed if elapsed > 0 else 0,
                             state.bytes_in, state.bytes_out, len(state.devices),
+                            decoder.frames_decoded, ch1_bytes_in,
+                            decoder.diag_lines, decoder.bad_sync,
                         )
         except (serial.SerialException, OSError) as e:
             with state_lock:
@@ -293,6 +318,12 @@ def _reader_loop():
 
 
 def _writer_loop():
+    # v2 firmware demuxes by 5-byte header. All outgoing CRSF frames
+    # currently target the NEW downlink Tx (ch=1) — that's the only
+    # writable RF path from the drone-pi. If a future Phase H4 feature
+    # needs to send to ch=2 (uplink Rx config back-channel — typically
+    # for Lua param-set), it'll go through a different code path with
+    # an explicit channel argument; we don't gate this here.
     while True:
         frame = tx_queue.get()
         ser = _serial_handle.get("ser")
@@ -300,8 +331,16 @@ def _writer_loop():
             log.warning("tx: serial not open, dropping %d B", len(frame))
             continue
         try:
-            ser.write(frame)
+            framed = mux.encode(mux.CHAN_TX, frame)
+        except mux.MuxEncodeError as e:
+            log.warning("tx: mux encode failed (%s); dropping %d B",
+                        e, len(frame))
+            continue
+        try:
+            ser.write(framed)
             with state_lock:
+                # Counter tracks payload bytes, not framing overhead —
+                # matches the existing semantic ("bytes of CRSF sent").
                 state.bytes_out += len(frame)
         except (serial.SerialException, OSError) as e:
             log.warning("tx: write failed: %s", e)
