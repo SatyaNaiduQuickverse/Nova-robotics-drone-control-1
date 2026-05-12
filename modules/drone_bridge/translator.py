@@ -134,6 +134,7 @@ class TranslatorState:
         self.frames_in:     int = 0
         self.commands_sent: int = 0
         self.commands_skipped_link_loss: int = 0
+        self.commands_skipped_disarmed:  int = 0
         self.events_arm:    int = 0
         self.events_disarm: int = 0
         self.events_mode:   int = 0
@@ -216,6 +217,26 @@ async def _control_sender_loop(client: httpx.AsyncClient,
                 age = "never" if state.last_rc_ts is None \
                       else f"{(t0 - state.last_rc_ts):.2f}s"
                 log.warning("link-loss guard active (age=%s) — not sending /control/command", age)
+        elif state.channels_us[4] < 1500:
+            # Radio-mode gate. The translator's /control/command publish
+            # is meaningful ONLY when the operator is using Radio-mode RC,
+            # signalled by CH5 wire at ARM (≥1500 µs). In Internet/Fibre
+            # modes the phone bypasses BLE/ELRS, so CH5 stays at DISARM
+            # idle (≈999 µs). Publishing /control/command in that state
+            # competes with the phone's direct HTTP commands at virtual_tx
+            # and drowns them out (translator at 50 Hz vs phone at 10 Hz).
+            # CH5 < 1500 → translator silent → HTTP path is uncontested.
+            #
+            # Threshold matches the existing CH5 edge-detect in
+            # EdgeEventHandler.on_channels. CH5 idle/active values
+            # (~999/~2000) sit far from 1500 so ELRS drift can't oscillate
+            # the gate.
+            state.commands_skipped_disarmed += 1
+            if state.commands_skipped_disarmed == 1 \
+               or state.commands_skipped_disarmed % int(CONTROL_SEND_HZ * 30) == 0:
+                log.info("CH5 DISARM (us=%d) — translator yielding /control/command "
+                         "to external HTTP clients (Internet/Fibre mode)",
+                         state.channels_us[4])
         else:
             ch = state.channels_crsf
             # Stick channel mapping matches the phone-side ElrsControlApi.kt
@@ -242,7 +263,7 @@ async def _control_sender_loop(client: httpx.AsyncClient,
         if t0 - last_log >= 10.0:
             last_log = t0
             vl = state.vision_lock
-            log.info("translator stats: frames_in=%d sent=%d skipped=%d "
+            log.info("translator stats: frames_in=%d sent=%d skipped=%d disarmed=%d "
                      "arm=%d disarm=%d mode=%d "
                      "vlock=[engage=%d follow=%d abort=%d cancel=%d "
                      "source=%d esc=%d sub=%d] "
@@ -250,6 +271,7 @@ async def _control_sender_loop(client: httpx.AsyncClient,
                      "idem=%d reserved=%d esc_to=%d unstable=%d]",
                      state.frames_in, state.commands_sent,
                      state.commands_skipped_link_loss,
+                     state.commands_skipped_disarmed,
                      state.events_arm, state.events_disarm, state.events_mode,
                      vl.events_engage, vl.events_follow,
                      vl.events_abort, vl.events_cancel_lock,
