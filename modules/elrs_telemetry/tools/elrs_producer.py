@@ -32,8 +32,9 @@ FS = [
     992, 992, 992, 992, 992, 992, 992,   # CH10..16 centered
 ]
 
+import os
 URL = "http://localhost:5003/telemetry/raw"
-HZ  = 50.0
+HZ  = float(os.environ.get("ELRS_PRODUCER_HZ", "50"))
 PERIOD = 1.0 / HZ
 
 
