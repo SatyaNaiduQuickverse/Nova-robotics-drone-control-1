@@ -68,6 +68,14 @@ class LinkState:
     last_ls_ts:    Optional[float] = None
     ls_count:      int = 0
 
+    # Mux-layer (USB-CDC 0xCAFE framing) counters. Snapshotted from the
+    # reader-loop's decoder instance on every chunk read so production
+    # delivery measurement can poll /stats without WS-broker coalescing.
+    mux_frames_decoded: int = 0
+    mux_bad_sync:       int = 0
+    mux_diag_lines:     int = 0
+    ch1_bytes_in:       int = 0   # downlink Tx talkback bytes
+
     devices:       dict = field(default_factory=dict)
     bytes_in:      int = 0
     bytes_out:     int = 0
@@ -275,6 +283,13 @@ def _reader_loop():
                     continue
                 with state_lock:
                     state.bytes_in += len(chunk)
+                    # Snapshot mux-layer counters so /stats sees fresh values
+                    # without exposing the decoder instance directly. Python
+                    # int reads/writes are atomic under the GIL — the lock
+                    # only serialises with REST handlers that read state.
+                    state.mux_frames_decoded = decoder.frames_decoded
+                    state.mux_bad_sync       = decoder.bad_sync
+                    state.mux_diag_lines     = decoder.diag_lines
                 for channel, payload in decoder.feed(chunk):
                     if channel == mux.CHAN_RX:
                         # Existing uplink path: CRSF frames from the bound
@@ -287,6 +302,8 @@ def _reader_loop():
                         # Tx talkback (link stats, device-info responses).
                         # No consumer wired yet; count bytes for stats.
                         ch1_bytes_in += len(payload)
+                        with state_lock:
+                            state.ch1_bytes_in = ch1_bytes_in
 
                 # Throttled summary every 10 s so the journal stays readable.
                 now = time.monotonic()
@@ -418,11 +435,45 @@ def state_endpoint():
             devices={k: _age_ms(v) for k, v in state.devices.items()},
             uplink_hz=round(state.rc_count / elapsed, 2) if elapsed > 0 else 0,
             link_stats_hz=round(state.ls_count / elapsed, 2) if elapsed > 0 else 0,
+            # Raw parse/mux-layer counters — monotonic, sampled at parse time.
+            # Pollers compute true delivery rate via (c2-c1)/(t2-t1) without
+            # WS-broker coalescing artefacts. Production-grade RF metrics.
+            rc_count=state.rc_count,
+            ls_count=state.ls_count,
+            mux_frames_decoded=state.mux_frames_decoded,
+            mux_bad_sync=state.mux_bad_sync,
+            mux_diag_lines=state.mux_diag_lines,
+            ch1_bytes_in=state.ch1_bytes_in,
             bytes_in=state.bytes_in,
             bytes_out=state.bytes_out,
             uptime_s=round(elapsed, 2),
             serial_connected=state.serial_connected,
             tx_queue_depth=tx_queue.qsize(),
+        )
+
+
+@app.route("/stats")
+def stats_endpoint():
+    """Lightweight production polling endpoint — raw counters only.
+
+    Designed for periodic polling at ≥1 Hz from a flight-telemetry
+    monitor or external delivery-rate computer. Excludes the heavier
+    channels/link/devices payloads in /state.
+    """
+    now = time.monotonic()
+    with state_lock:
+        return jsonify(
+            rc_count=state.rc_count,
+            ls_count=state.ls_count,
+            mux_frames_decoded=state.mux_frames_decoded,
+            mux_bad_sync=state.mux_bad_sync,
+            mux_diag_lines=state.mux_diag_lines,
+            bytes_in=state.bytes_in,
+            bytes_out=state.bytes_out,
+            ch1_bytes_in=state.ch1_bytes_in,
+            uptime_s=round(now - state.started_at, 2),
+            serial_connected=state.serial_connected,
+            ts_monotonic=round(now, 3),
         )
 
 
