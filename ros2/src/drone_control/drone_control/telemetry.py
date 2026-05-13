@@ -136,6 +136,18 @@ class TelemetryNode(Node):
         super().__init__("telemetry_node")
         self.telem = telemetry
 
+        # Orientation source switchover: /mavros/local_position/pose needs
+        # EKF origin (GPS lock) to publish; without it self.telem.orientation
+        # would stay at 0/0/0 forever. _imu_cb writes orientation as a
+        # fallback when local_position is stale (>0.5 s old). When GPS
+        # locks and local_position resumes publishing at its native 30+ Hz,
+        # it stamps the timestamp on every callback and IMU fallback
+        # naturally yields. Handles mid-flight GPS-loss too: if
+        # local_position stops, IMU resumes within 0.5 s rather than
+        # freezing the HUD at stale GPS-era values.
+        self._last_local_pos_orient_ts: float | None = None
+        self._ORIENT_STALE_S = 0.5
+
         # Sensor data QoS - compatible with most MAVROS topics
         qos_sensor = QoSProfile(
             depth=10,
@@ -239,6 +251,8 @@ class TelemetryNode(Node):
         self.telem.orientation["roll"] = _quat_to_euler_roll(q.x, q.y, q.z, q.w)
         self.telem.orientation["pitch"] = _quat_to_euler_pitch(q.x, q.y, q.z, q.w)
         self.telem.orientation["yaw"] = _quat_to_euler_yaw(q.x, q.y, q.z, q.w)
+        # Stamp freshness so _imu_cb knows local_position is alive.
+        self._last_local_pos_orient_ts = time.monotonic()
 
     def _vel_cb(self, msg: TwistStamped):
         self.telem.velocity["vx"] = msg.twist.linear.x
@@ -263,6 +277,17 @@ class TelemetryNode(Node):
         self.telem.imu["gx"] = msg.angular_velocity.x
         self.telem.imu["gy"] = msg.angular_velocity.y
         self.telem.imu["gz"] = msg.angular_velocity.z
+        # Orientation fallback: write from FC-IMU quaternion only when
+        # /mavros/local_position/pose hasn't published recently (>0.5 s).
+        # Preserves GPS-fused EKF attitude when GPS is locked (local_pos
+        # stamps the ts on every tick at 30+ Hz, never stale); fills in
+        # when GPS is absent or has dropped mid-flight.
+        last = self._last_local_pos_orient_ts
+        if last is None or (time.monotonic() - last) > self._ORIENT_STALE_S:
+            q = msg.orientation
+            self.telem.orientation["roll"]  = _quat_to_euler_roll(q.x, q.y, q.z, q.w)
+            self.telem.orientation["pitch"] = _quat_to_euler_pitch(q.x, q.y, q.z, q.w)
+            self.telem.orientation["yaw"]   = _quat_to_euler_yaw(q.x, q.y, q.z, q.w)
 
     def _mag_cb(self, msg: MagneticField):
         self.telem.mag["x"] = msg.magnetic_field.x
