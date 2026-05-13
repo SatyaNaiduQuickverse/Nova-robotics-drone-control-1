@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import errno
 import os
+import signal
 import sys
 from pathlib import Path
 from typing import Optional
@@ -60,6 +61,31 @@ def _read_cmdline(pid: int) -> Optional[str]:
     return raw.replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
 
 
+def _read_argv(pid: int) -> list[str]:
+    """Return /proc/<pid>/cmdline split into argv. Empty list if gone."""
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except (FileNotFoundError, PermissionError):
+        return []
+    if not raw:
+        return []
+    # cmdline is null-separated. Trailing null is normal.
+    parts = raw.split(b"\x00")
+    return [p.decode("utf-8", errors="replace") for p in parts if p]
+
+
+def _is_stub_argv(argv: list[str]) -> bool:
+    """True if any argv element's basename matches a stub producer
+    filename exactly (basename match, not substring — so fc_battery_*
+    is correctly excluded)."""
+    for arg in argv:
+        # bare basename check works for both relative and absolute paths
+        base = os.path.basename(arg)
+        if base in STUB_PRODUCER_NAMES:
+            return True
+    return False
+
+
 def find_running_stubs() -> list[tuple[int, str]]:
     """Return [(pid, cmdline), …] for any stub producer found via /proc."""
     found: list[tuple[int, str]] = []
@@ -71,11 +97,11 @@ def find_running_stubs() -> list[tuple[int, str]]:
             pid = int(entry.name)
             if pid == my_pid:
                 continue
-            cmd = _read_cmdline(pid)
-            if not cmd:
+            argv = _read_argv(pid)
+            if not argv:
                 continue
-            if any(name in cmd for name in STUB_PRODUCER_NAMES):
-                found.append((pid, cmd))
+            if _is_stub_argv(argv):
+                found.append((pid, " ".join(argv)))
     except OSError:
         # /proc unavailable (non-Linux, or unusual sandbox). Caller can
         # decide whether to abort or continue — default conservative.
@@ -121,6 +147,23 @@ def release_pidfile(path: Path) -> None:
         # Don't crash on release errors — log and move on. Producers
         # may be in shutdown when this runs.
         sys.stderr.write(f"warning: cannot remove {path}: {e}\n")
+
+
+def install_clean_shutdown_handlers() -> None:
+    """Convert SIGTERM/SIGINT into SystemExit so the producer's
+    `finally:` block (which releases the pidfile) runs.
+
+    Docker stop, systemd stop, and `kill <pid>` all send SIGTERM by
+    default. Without this handler the producer dies before `finally:`
+    runs and leaks a pidfile. Stale pidfiles are auto-cleared at next
+    startup, but live handlers are better than relying on cleanup.
+    """
+    def _exit(*_):
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, _exit)
+    # SIGINT is already mapped to KeyboardInterrupt by Python's default
+    # handler; producers' main() catches that. We don't override it
+    # here so `Ctrl-C` in a terminal still gives the "stopped" message.
 
 
 def production_setup(name: str) -> Path:
