@@ -37,3 +37,29 @@ services:
       # Set ELRS_API_TOKEN=... to require Authorization: Bearer on POSTs.
       # Empty (default) leaves POSTs open — fine on a private LAN.
     restart: unless-stopped
+
+  elrs-producers:
+    # Sidecar that runs the 5 telemetry producers (RC keeper + 4 FC-sourced)
+    # under an inner supervisor. Replaces the nohup-from-shell pattern that
+    # didn't survive Pi reboots. Inner supervisor restarts individual
+    # producers on crash; Docker `restart: unless-stopped` handles full
+    # container failures.
+    build:
+      context: .
+      dockerfile: producers.Dockerfile
+    image: novaros/elrs-producers:latest
+    container_name: elrs-producers
+    # host networking so the producers can reach the daemon on localhost:5003
+    # and drone-control on localhost:8080 without bridging gymnastics.
+    network_mode: host
+    depends_on:
+      - elrs
+    environment:
+      # Reads FC telemetry from drone-control HTTP. Override if drone-control
+      # ever moves off localhost.
+      - DRONE_CONTROL_URL=http://localhost:8080
+      # RC keeper rate. 10 Hz is sufficient to maintain ELRS Tx bind and
+      # leaves OTA budget for telemetry frames. The supervisor passes this
+      # through only to the RC keeper child.
+      - ELRS_PRODUCER_HZ=10
+    restart: unless-stopped
