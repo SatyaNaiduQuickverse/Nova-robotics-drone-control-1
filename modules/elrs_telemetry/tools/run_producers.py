@@ -16,6 +16,7 @@ Pattern lifted from drone-control's entrypoint-supervisor (see memory
 """
 from __future__ import annotations
 
+import glob
 import os
 import signal
 import subprocess
@@ -122,9 +123,33 @@ def _shutdown(signum, _frame) -> None:
     stop_flag.set()
 
 
+def _purge_stale_pidfiles() -> None:
+    """Remove producer pidfiles left over from a previous supervisor run.
+
+    Inside the container, /tmp persists across `docker restart` and PIDs
+    get reused — the OLD pidfile may point at a live PID that's actually
+    a different process (often this supervisor itself). producer_safety
+    treats that as a held pidfile and refuses to start. Since the
+    supervisor is the sole owner of these pidfiles when it starts, it's
+    safe to clear them all at boot.
+    """
+    pattern = "/tmp/novaros_elrs_producer_*.pid"
+    removed = []
+    for path in glob.glob(pattern):
+        try:
+            os.unlink(path)
+            removed.append(path)
+        except OSError as e:
+            log("supervisor", f"could not remove stale pidfile {path}: {e}")
+    if removed:
+        log("supervisor", f"purged {len(removed)} stale pidfile(s)")
+
+
 def main() -> int:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
+
+    _purge_stale_pidfiles()
 
     log("supervisor", f"starting {len(PRODUCERS)} producers")
     threads: list[threading.Thread] = []
