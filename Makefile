@@ -28,10 +28,10 @@ COMPOSE_BRIDGE_DIR  := $(ROOT_DIR)/modules/drone_bridge
 
 # ros2/docker-compose.yml services we want in production:
 #   drone   — drone-control container (FastAPI + MAVROS supervisor)
-#   pi-cam  — Pi camera sidecar (retired hardware but image preserved)
 #   web     — web-control Flask UI
-# Excluded: vision (Hailo NPU, opt-in only due to thermal throttling)
-ROS2_PROD_SERVICES := drone pi-cam web
+# Excluded: pi-cam (retired hardware — Pi Camera Module 3 no longer on the drone)
+#           vision (Hailo NPU, opt-in only due to thermal throttling)
+ROS2_PROD_SERVICES := drone web
 ROS2_VISION_SERVICE := vision
 
 .PHONY: help build up up-with-vision down restart ps logs verify clean prune
