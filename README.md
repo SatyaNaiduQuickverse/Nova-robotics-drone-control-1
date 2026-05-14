@@ -17,6 +17,8 @@ make build     # build all 7 service images (≈30 min, one-time)
 make up        # production stack — drone + cameras + web + elrs + bridge + mongo
 ```
 
+**Full fresh-Pi walkthrough with copy-paste commands: [DEPLOY.md](DEPLOY.md)**
+
 That's the full flight-ready stack. Vision-detect (Hailo NPU YOLO) is
 **opt-in** because the Pi throttles when it runs alongside everything else:
 
