@@ -113,8 +113,13 @@ if grep -qE 'video=Composite-1' /boot/firmware/cmdline.txt 2>/dev/null; then
 else
     warn "Composite-1 not set in cmdline.txt — VTX may run at wrong resolution"
 fi
-if [ -e /sys/class/drm/card1-Composite-1 ]; then
-    ok "composite DRM connector active"
+# Card index can be 1 or 2 depending on driver-load order after a reboot.
+# Match any card?-Composite-1 — the connector identity, not its slot.
+shopt -s nullglob
+composite_matches=( /sys/class/drm/card*-Composite-1 )
+shopt -u nullglob
+if [ ${#composite_matches[@]} -gt 0 ]; then
+    ok "composite DRM connector active (${composite_matches[0]##*/})"
 else
     warn "composite DRM connector not present — composite-out won't work until reboot after boot-config change"
 fi
