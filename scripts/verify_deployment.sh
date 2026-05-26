@@ -9,6 +9,11 @@
 
 set -u
 
+# deploy patch: resolve repo root from this script's own location instead of
+# the original hardcoded /home/novaedge1 path (deploy user/home varies per Pi).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
 PASS=0
 FAIL=0
 WARN=0
@@ -75,7 +80,7 @@ shopt -u nullglob
 if [ ${#esp_matches[@]} -gt 0 ]; then
     ok "ESP32 enumerated at ${esp_matches[0]}"
     # Warn if compose has a different specific path hardcoded
-    if grep -q "ELRS_SERIAL_DEVICE=${esp_matches[0]}" /home/novaedge1/novaros/modules/elrs_telemetry/docker-compose.yml 2>/dev/null; then
+    if grep -q "ELRS_SERIAL_DEVICE=${esp_matches[0]}" "$REPO_ROOT/modules/elrs_telemetry/docker-compose.yml" 2>/dev/null; then
         ok "  compose ELRS_SERIAL_DEVICE matches enumerated path"
     else
         warn "  compose ELRS_SERIAL_DEVICE hardcoded to a different serial"

@@ -222,7 +222,8 @@ sh get-docker.sh
 rm get-docker.sh
 
 # Add users to docker group
-usermod -aG docker novaedge1 || true
+# deploy patch: original hardcoded 'novaedge1'; use the real invoking user.
+usermod -aG docker "${SUDO_USER:-$(logname 2>/dev/null)}" || true
 
 # Install Docker Compose plugin
 apt install -y docker-compose-plugin || {
@@ -339,9 +340,9 @@ apt install -y \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
-    libatlas-base-dev \
     libhdf5-dev \
-    libopenblas-dev
+    liblapack-dev \
+    libopenblas-dev   # deploy patch: dropped libatlas-base-dev (removed in Trixie); openblas/lapack cover BLAS/LAPACK
 
 log_success "Development libraries installed"
 
@@ -374,43 +375,15 @@ log_success "System settings configured"
 #-------------------------------------------------------------------------------
 # 16. CREATE PROJECT STRUCTURE
 #-------------------------------------------------------------------------------
-log_info "Creating project directory structure..."
-
-PROJ_DIR="/home/novaedge1/novaros"
-mkdir -p $PROJ_DIR/{src,config,logs,data,scripts,models,tests}
-mkdir -p $PROJ_DIR/src/{mavlink,vision,networking,api,database}
-chown -R novaedge1:novaedge1 $PROJ_DIR
-
-log_success "Project structure created"
-
-#-------------------------------------------------------------------------------
-# 17. CREATE MONGODB DOCKER COMPOSE
-#-------------------------------------------------------------------------------
-log_info "Creating MongoDB Docker Compose file..."
-
-cat > $PROJ_DIR/docker-compose.yml << 'DOCKERCOMPOSE'
-version: '3.8'
-
-services:
-  mongodb:
-    image: mongo:7.0
-    container_name: novaros-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=novaros
-      - MONGO_INITDB_ROOT_PASSWORD=novaros_secure_pwd
-
-volumes:
-  mongodb_data:
-DOCKERCOMPOSE
-
-chown novaedge1:novaedge1 $PROJ_DIR/docker-compose.yml
-
-log_success "Docker Compose file created"
+# deploy patch: legacy skeleton step neutralized.
+# Original created /home/novaedge1/novaros and chowned it to user 'novaedge1',
+# which does not exist on this Pi (real user is detected via $SUDO_USER) and
+# aborted the whole script under 'set -e'. It also wrote a competing
+# docker-compose.yml that is a strict subset (mongodb-only) of what the cloned
+# repo already ships. The repo at ~/novaros provides the real project
+# structure + root docker-compose.yml the Makefile drives, so nothing to do.
+log_info "Project structure + MongoDB compose provided by the cloned repo (~/novaros)."
+log_success "Project structure (repo) in place"
 
 #-------------------------------------------------------------------------------
 # INSTALLATION COMPLETE
