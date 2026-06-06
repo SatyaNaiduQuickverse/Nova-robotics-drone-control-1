@@ -39,6 +39,7 @@ for _ in $(seq 1 15); do
     matches=(
         /dev/serial/by-id/usb-CubePilot_CubeOrange+_*-if00
         /dev/serial/by-id/usb-ArduPilot_Pixhawk1_*-if00
+        /dev/serial/by-id/usb-ArduPilot_MicoAir743v2_*-if00
     )
     if [ ${#matches[@]} -gt 0 ]; then
         FC_DEV="${matches[0]}"

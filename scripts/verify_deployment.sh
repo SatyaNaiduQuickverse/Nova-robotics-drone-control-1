@@ -59,15 +59,15 @@ fi
 
 # -----------------------------------------------------------------------------
 echo ""
-echo "Flight controller (CubeOrange / Pixhawk):"
-FC_GLOB="/dev/serial/by-id/usb-CubePilot_CubeOrange+_*-if00 /dev/serial/by-id/usb-ArduPilot_Pixhawk1_*-if00"
+echo "Flight controller (CubeOrange / Pixhawk / MicoAir):"
+FC_GLOB="/dev/serial/by-id/usb-CubePilot_CubeOrange+_*-if00 /dev/serial/by-id/usb-ArduPilot_Pixhawk1_*-if00 /dev/serial/by-id/usb-ArduPilot_MicoAir743v2_*-if00"
 shopt -s nullglob
 fc_matches=( $FC_GLOB )
 shopt -u nullglob
 if [ ${#fc_matches[@]} -gt 0 ]; then
     ok "FC enumerated at ${fc_matches[0]}"
 else
-    fail "no FC at /dev/serial/by-id/usb-CubePilot_CubeOrange+_*-if00 or usb-ArduPilot_Pixhawk1_*-if00"
+    fail "no FC at /dev/serial/by-id/ (CubeOrange+ / Pixhawk1 / MicoAir743v2)"
     fail "  (check USB cable, check FC is in RUNTIME mode not bootloader)"
 fi
 
